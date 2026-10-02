@@ -1,0 +1,21 @@
+name: PR Tests Changed
+
+# Testing harness playbook, Gate 3 "tests-changed". Separate from PR Checks so label and description edits
+# re-run only this cheap check.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-tests-changed-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tests-changed:
+    uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/tests-changed.yml@v1
+    with:
+      toolkit-ref: v1

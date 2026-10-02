@@ -1,0 +1,138 @@
+name: Verify (reusable)
+
+# Playbook Gate 3 "verify" + "coverage". Installs the toolchain, runs the repo's `verify` contract command
+# (Part 7) through whatever task runner the repo uses, then applies the coverage ratchet and the
+# changed-line coverage threshold.
+# Call with:  uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/verify.yml@v1
+#
+# Toolchain: pin versions in mise.toml or .tool-versions (any language). Without them, Node (package.json),
+# Python (pyproject.toml / requirements.txt) and Go (go.mod) are detected.
+
+on:
+  workflow_call:
+    inputs:
+      verify-command:
+        description: Contract command to run.
+        type: string
+        default: verify
+      setup-command:
+        description: Shell command to install dependencies. Empty = auto-detect.
+        type: string
+        default: ""
+      coverage-report:
+        description: Path to an LCOV or Cobertura report written by verify. Empty = skip coverage gates.
+        type: string
+        default: ""
+      changed-line-coverage:
+        description: Minimum % of changed, instrumented lines that tests must execute. 0 = off.
+        type: number
+        default: 80
+      toolkit-ref:
+        description: Ref of Equilux-Group-LLC/engineering-playbook whose scripts to use. Keep equal to the @ref you call.
+        type: string
+        default: v1
+      timeout-minutes:
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (build / lint / types / tests / coverage)
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out harness toolkit
+        uses: actions/checkout@v4
+        with:
+          repository: Equilux-Group-LLC/engineering-playbook
+          ref: ${{ inputs.toolkit-ref }}
+          path: .harness-toolkit
+
+      - name: Detect toolchain
+        id: tc
+        run: |
+          has() { [ -e "$1" ]; }
+          if has mise.toml || has .mise.toml || has .tool-versions; then echo "mise=true" >> "$GITHUB_OUTPUT"; fi
+          if has package.json; then
+            echo "node=true" >> "$GITHUB_OUTPUT"
+            if   has pnpm-lock.yaml;    then echo "pm=pnpm" >> "$GITHUB_OUTPUT"; echo "cache=pnpm" >> "$GITHUB_OUTPUT"
+            elif has yarn.lock;         then echo "pm=yarn" >> "$GITHUB_OUTPUT"; echo "cache=yarn" >> "$GITHUB_OUTPUT"
+            elif has package-lock.json; then echo "pm=npm"  >> "$GITHUB_OUTPUT"; echo "cache=npm"  >> "$GITHUB_OUTPUT"
+            else                             echo "pm=npm"  >> "$GITHUB_OUTPUT"; fi
+            if   has .nvmrc;         then echo "node-file=.nvmrc" >> "$GITHUB_OUTPUT"
+            elif has .node-version;  then echo "node-file=.node-version" >> "$GITHUB_OUTPUT"; fi
+          fi
+          if has pyproject.toml || has requirements.txt; then echo "python=true" >> "$GITHUB_OUTPUT"; fi
+          if has go.mod; then echo "go=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up tools (mise)
+        if: steps.tc.outputs.mise == 'true'
+        uses: jdx/mise-action@v2
+
+      - name: Set up pnpm
+        if: steps.tc.outputs.mise != 'true' && steps.tc.outputs.pm == 'pnpm'
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        if: steps.tc.outputs.mise != 'true' && steps.tc.outputs.node == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ steps.tc.outputs.node-file }}
+          node-version: ${{ steps.tc.outputs.node-file == '' && '22' || '' }}
+          cache: ${{ steps.tc.outputs.cache }}
+
+      - name: Set up Python
+        if: steps.tc.outputs.mise != 'true' && steps.tc.outputs.python == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Go
+        if: steps.tc.outputs.mise != 'true' && steps.tc.outputs.go == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install dependencies
+        env:
+          SETUP_COMMAND: ${{ inputs.setup-command }}
+          PM: ${{ steps.tc.outputs.pm }}
+        run: |
+          if [ -n "$SETUP_COMMAND" ]; then bash -c "$SETUP_COMMAND"; exit; fi
+          case "$PM" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            npm)  if [ -f package-lock.json ]; then npm ci; else npm install; fi ;;
+          esac
+          if   [ -f uv.lock ];          then pip install uv && uv sync --frozen
+          elif [ -f requirements.txt ]; then pip install -r requirements.txt
+          elif [ -f pyproject.toml ];   then pip install -e ".[dev]" 2>/dev/null || pip install -e .
+          fi
+          if [ -f go.mod ]; then go mod download; fi
+
+      - name: Run verify
+        env:
+          CI: "true"
+          VERIFY_COMMAND: ${{ inputs.verify-command }}
+        run: bash .harness-toolkit/scripts/run-contract.sh "$VERIFY_COMMAND"
+
+      - name: Coverage ratchet
+        if: inputs.coverage-report != ''
+        env:
+          REPORT: ${{ inputs.coverage-report }}
+        run: python3 .harness-toolkit/scripts/coverage-ratchet.py "$REPORT"
+
+      - name: Changed-line coverage
+        if: inputs.coverage-report != '' && inputs.changed-line-coverage > 0 && github.event_name == 'pull_request'
+        env:
+          REPORT: ${{ inputs.coverage-report }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          THRESHOLD: ${{ inputs.changed-line-coverage }}
+        run: python3 .harness-toolkit/scripts/diff-coverage.py "$REPORT" "$BASE_SHA" --fail-under "$THRESHOLD"

@@ -1,0 +1,14 @@
+---
+description: Testing rules for every code change (Equilux testing harness playbook)
+globs:
+alwaysApply: true
+---
+- Follow docs/testing-harness-playbook.md. Use its Part 4 change-type matrix to decide which tests to add.
+- Every behavior change includes tests in the same commit. Bug fixes start with a failing test.
+- Integration tests use the real handler and a real throwaway database with all migrations applied.
+  Fake only third-party services.
+- If a change adds a new input field, output, integration, or role, update test/invariants/CATALOG.yaml and its tests.
+- Never delete, skip, weaken, or mark-as-failing an existing test to get green. If a test is wrong, say why.
+- Fixtures use obviously fake data only.
+- Run `verify` before saying work is done. Report the actual result; never claim green without running it.
+- Never merge, and never say a PR is ready, while any check is red, pending, or missing.

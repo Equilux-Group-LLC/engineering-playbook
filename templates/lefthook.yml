@@ -1,0 +1,16 @@
+# Git hooks for playbook Gates 1 and 2. Installed by `lefthook install` (the `setup` command should run it).
+# Contract commands run through the shared runner so this file works for any language.
+pre-commit:
+  parallel: true
+  commands:
+    secrets:
+      run: gitleaks git --staged --redact --no-banner
+    format:
+      run: .harness/run-contract.sh format:check || [ $? -eq 2 ]
+    lint:
+      run: .harness/run-contract.sh lint || [ $? -eq 2 ]
+
+pre-push:
+  commands:
+    verify:
+      run: .harness/run-contract.sh verify

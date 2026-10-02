@@ -1,0 +1,67 @@
+name: Release
+
+# Run from Actions -> Release -> Run workflow on main. Runs the self-tests, tags vX.Y.Z, publishes a GitHub
+# release with the Claude skill zip attached, and moves the major tag (v1) so callers pinned to @v1 pick it up.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, without the v (for example 1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Validate inputs
+        env:
+          VERSION: ${{ inputs.version }}
+          REF: ${{ github.ref }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3 (got '$VERSION')."; exit 1
+          fi
+          if [[ "$REF" != "refs/heads/main" ]]; then
+            echo "::error::Run the release from main (got $REF)."; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tests
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          bash test/run.sh
+
+      - name: Build skill zip
+        run: bash scripts/build-skill-zip.sh dist/testing-harness-skill.zip
+
+      - name: Tag and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag="v${VERSION}"
+          major="v${VERSION%%.*}"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists."; exit 1
+          fi
+          git tag "$tag"
+          git tag -f "$major"
+          git push origin "refs/tags/$tag"
+          git push -f origin "refs/tags/$major"
+          gh release create "$tag" dist/testing-harness-skill.zip --title "$tag" --generate-notes --verify-tag

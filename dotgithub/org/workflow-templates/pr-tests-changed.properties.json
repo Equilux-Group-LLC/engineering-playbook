@@ -1,0 +1,6 @@
+{
+  "name": "Equilux PR Tests Changed",
+  "description": "Testing harness Gate 3: fail PRs that change source code without changing tests.",
+  "iconName": "octicon beaker",
+  "categories": ["Continuous integration"]
+}

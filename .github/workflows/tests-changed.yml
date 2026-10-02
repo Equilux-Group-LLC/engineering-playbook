@@ -1,0 +1,57 @@
+name: Tests changed (reusable)
+
+# Playbook Gate 3 "tests-changed": source changed => tests changed, unless the PR has the opt-out label and
+# a "No test needed: <reason>" line in its description.
+# Call from a workflow triggered on pull_request with types including labeled, unlabeled and edited.
+
+on:
+  workflow_call:
+    inputs:
+      source-pattern:
+        description: Extended regex for source paths. Empty = script default.
+        type: string
+        default: ""
+      test-pattern:
+        description: Extended regex for test paths. Empty = script default.
+        type: string
+        default: ""
+      opt-out-label:
+        type: string
+        default: no-test-needed
+      toolkit-ref:
+        type: string
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  tests-changed:
+    name: Tests changed with code
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out harness toolkit
+        uses: actions/checkout@v4
+        with:
+          repository: Equilux-Group-LLC/engineering-playbook
+          ref: ${{ inputs.toolkit-ref }}
+          path: .harness-toolkit
+      # PR text goes through env only; it is untrusted and must never be expanded into the script.
+      - name: Check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          OPT_OUT_LABEL: ${{ inputs.opt-out-label }}
+          SOURCE_PATTERN_INPUT: ${{ inputs.source-pattern }}
+          TEST_PATTERN_INPUT: ${{ inputs.test-pattern }}
+        run: |
+          if [ -n "$SOURCE_PATTERN_INPUT" ]; then export SOURCE_PATTERN="$SOURCE_PATTERN_INPUT"; fi
+          if [ -n "$TEST_PATTERN_INPUT" ]; then export TEST_PATTERN="$TEST_PATTERN_INPUT"; fi
+          bash .harness-toolkit/scripts/tests-changed.sh "$BASE_SHA" "$HEAD_SHA"

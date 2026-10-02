@@ -1,0 +1,40 @@
+name: Self Test
+
+# The toolkit follows its own playbook: lint, tests and a secret scan on every PR and on main.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    uses: ./.github/workflows/secret-scan.yml
+
+  lint-and-test:
+    name: Lint and test toolkit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install linters
+        run: pip install shellcheck-py==0.11.0.1 actionlint-py==1.7.12.25
+      - name: shellcheck
+        run: shellcheck -x -S warning scripts/*.sh scripts/lib/*.sh test/run.sh
+      - name: actionlint
+        run: actionlint .github/workflows/*.yml dotgithub/org/workflow-templates/*.yml templates/workflows/*.yml
+      - name: Tests
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          bash test/run.sh

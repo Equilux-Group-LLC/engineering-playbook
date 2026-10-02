@@ -1,0 +1,25 @@
+# Invariant catalog (playbook Part 5). One entry per "never" rule for THIS project.
+# Every entry must name at least one passing test in enforced_by. Agents update this file whenever a change
+# adds a new input, output, integration, role or credential.
+#
+# Replace the examples below with the owner's answers to Part 9 question 2.
+- id: AUTHZ-001
+  rule: A user can modify only records owned by their own organization.
+  applies_to: [all write routes]
+  enforced_by: []
+- id: DATA-001
+  rule: Write APIs reject any field not on the allow-list.
+  applies_to: [all routes that accept a body]
+  enforced_by: []
+- id: DATA-002
+  rule: Prohibited sensitive fields never appear in any output.
+  applies_to: [API responses, exports, feeds, emails, SMS, logs, queue messages, backups]
+  enforced_by: []
+- id: SEC-001
+  rule: Tokens, passwords, and credential URLs never appear in logs, errors, or responses.
+  applies_to: [all routes, all scripts]
+  enforced_by: []
+- id: SEC-002
+  rule: Revoked credentials stop working immediately.
+  applies_to: [sessions, invite links, feed tokens, API keys]
+  enforced_by: []
