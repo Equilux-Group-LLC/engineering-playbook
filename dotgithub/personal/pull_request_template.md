@@ -1,5 +1,9 @@
 ## What & why
-<!-- 1-3 sentences. Link the issue. -->
+<!-- 1-3 sentences. -->
+
+Closes #
+<!-- Into the default branch: keep "Closes #<issue>" (or Fixes / Resolves) so merging closes it.
+     No issue: replace that line with "No issue: <reason>". Into another branch: "Related to #<issue>". -->
 
 ## Risk: check everything this PR touches
 - [ ] Authentication / authorization / permissions
