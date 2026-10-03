@@ -18,7 +18,7 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | --- | --- |
 | [`playbook/testing-harness-playbook.md`](playbook/testing-harness-playbook.md) | **The playbook.** Canonical, technology-agnostic testing architecture and agent instructions |
 | [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
-| [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Tests Changed" workflow templates |
+| [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Tests Changed" / "Equilux PR Issue Link" workflow templates |
 | [`templates/`](templates) | Starter files the bootstrap script copies into a project |
 | [`skills/testing-harness/`](skills/testing-harness) | Claude skill (Claude Code on your Mac and your claude.ai account) |
 | [`claude/`](claude) | Global Claude Code blocks (testing, issue auto-close) and Cursor user rule |

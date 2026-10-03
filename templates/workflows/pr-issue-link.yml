@@ -1,0 +1,22 @@
+name: PR Issue Link
+
+# A PR into the default branch must close its issue: "Closes #N" (or Fixes / Resolves) in the description, or
+# "No issue: <reason>". Separate from PR Checks so description edits re-run only this cheap check.
+# Make "issue-link / PR closes its issue" required with a branch ruleset where your plan allows.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-issue-link-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  issue-link:
+    uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/issue-link.yml@v1
+    with:
+      toolkit-ref: v1

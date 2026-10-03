@@ -1,0 +1,6 @@
+{
+  "name": "Equilux PR Issue Link",
+  "description": "Fail PRs into the default branch whose description doesn't close an issue (Closes #N) or say No issue: <reason>.",
+  "iconName": "octicon issue-closed",
+  "categories": ["Continuous integration"]
+}
