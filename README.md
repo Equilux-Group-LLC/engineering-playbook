@@ -63,7 +63,7 @@ jobs:
 
 ## Changing anything here
 
-Open a pull request. `Self Test` must pass: it lints every script and workflow and runs `test/run.sh`.
+You need to open a pull request. `Self Test` must pass: it lints every script and workflow and runs `test/run.sh`.
 To release, run **Actions → Release → Run workflow** on `main` with a version such as `1.2.0`. It runs the
 self-tests, tags `v1.2.0`, publishes a release with the skill zip attached, and moves the `v1` tag. Breaking
 changes for callers go to a new major version (`2.0.0` creates `v2`).
