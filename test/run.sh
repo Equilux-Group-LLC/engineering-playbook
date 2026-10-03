@@ -53,6 +53,11 @@ f="$work/AGENTS.md"; printf '# Rules\n\nKeep me.\n' > "$f"
 upsert_block "$f" "$root/templates/AGENTS.testing.md"; upsert_block "$f" "$root/templates/AGENTS.testing.md"
 n="$(grep -c 'BEGIN equilux-testing-harness' "$f")"
 [[ "$n" == 1 ]] && grep -q 'Keep me.' "$f" && ok "managed-block: idempotent upsert keeps user text" || bad "managed-block: idempotent upsert" "blocks=$n"
+upsert_block "$f" "$root/claude/CLAUDE.issues.md" equilux-issue-linking; upsert_block "$f" "$root/claude/CLAUDE.issues.md" equilux-issue-linking
+[[ "$(grep -c 'BEGIN equilux-issue-linking' "$f")" == 1 && "$(grep -c 'BEGIN equilux-testing-harness' "$f")" == 1 ]] \
+  && ok "managed-block: named block sits beside the testing block" || bad "managed-block: named block sits beside the testing block"
+remove_block "$f" equilux-issue-linking
+! grep -q 'equilux-issue-linking' "$f" && grep -q 'BEGIN equilux-testing-harness' "$f" && ok "managed-block: remove named block only" || bad "managed-block: remove named block only"
 remove_block "$f"
 ! grep -q 'equilux-testing-harness' "$f" && grep -q 'Keep me.' "$f" && ok "managed-block: remove" || bad "managed-block: remove"
 
@@ -78,8 +83,9 @@ expect_status "install-local: second run (update)" 0 run_install
 [[ -L "$fakehome/.claude/skills/testing-harness" && -f "$fakehome/.claude/skills/testing-harness/SKILL.md" ]] && ok "install-local: skill symlink resolves" || bad "install-local: skill symlink resolves"
 [[ -s "$fakehome/.claude/skills/testing-harness/references/testing-harness-playbook.md" ]] && ok "install-local: playbook reachable through skill" || bad "install-local: playbook reachable through skill"
 [[ "$(grep -c 'BEGIN equilux-testing-harness' "$fakehome/.claude/CLAUDE.md")" == 1 ]] && grep -q 'My own rule.' "$fakehome/.claude/CLAUDE.md" && ok "install-local: CLAUDE.md block once, user text kept" || bad "install-local: CLAUDE.md block"
+[[ "$(grep -c 'BEGIN equilux-issue-linking' "$fakehome/.claude/CLAUDE.md")" == 1 ]] && grep -q 'Closes #N' "$fakehome/.claude/CLAUDE.md" && ok "install-local: CLAUDE.md issue-linking block once" || bad "install-local: CLAUDE.md issue-linking block once"
 expect_status "install-local: uninstall" 0 run_install --uninstall
-[[ ! -e "$fakehome/.claude/skills/testing-harness" ]] && ! grep -q equilux-testing-harness "$fakehome/.claude/CLAUDE.md" && ok "install-local: uninstall cleans up" || bad "install-local: uninstall cleans up"
+[[ ! -e "$fakehome/.claude/skills/testing-harness" ]] && ! grep -q 'equilux-testing-harness\|equilux-issue-linking' "$fakehome/.claude/CLAUDE.md" && grep -q 'My own rule.' "$fakehome/.claude/CLAUDE.md" && ok "install-local: uninstall cleans up" || bad "install-local: uninstall cleans up"
 
 # ---- skill zip ----
 z="$work/skill.zip"

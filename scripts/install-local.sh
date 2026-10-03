@@ -8,7 +8,8 @@
 #   1. Clones Equilux-Group-LLC/engineering-playbook to $HARNESS_HOME (default ~/Developer/engineering-playbook),
 #      or fast-forwards it if it already exists.
 #   2. Symlinks ~/.claude/skills/testing-harness -> the clone's skills/testing-harness.
-#   3. Adds a marked block to ~/.claude/CLAUDE.md pointing every Claude Code session at the playbook.
+#   3. Adds marked blocks to ~/.claude/CLAUDE.md: one pointing every Claude Code session at the playbook, one with
+#      the issue auto-close rule for commits and pull requests.
 #   4. Copies the Cursor user rule to the clipboard for you to paste into Cursor Settings -> Rules.
 # Updates later:  git -C ~/Developer/engineering-playbook pull
 set -euo pipefail
@@ -28,7 +29,8 @@ if [[ "${1:-}" == "--uninstall" ]]; then
     source "$HARNESS_HOME/scripts/lib/managed-block.sh"
     cp "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md.bak.$stamp"
     remove_block "$CLAUDE_DIR/CLAUDE.md"
-    say "Removed the testing block from $CLAUDE_DIR/CLAUDE.md (backup: CLAUDE.md.bak.$stamp)"
+    remove_block "$CLAUDE_DIR/CLAUDE.md" equilux-issue-linking
+    say "Removed the testing and issue-linking blocks from $CLAUDE_DIR/CLAUDE.md (backup: CLAUDE.md.bak.$stamp)"
   fi
   say "Left $HARNESS_HOME in place; delete it yourself if you no longer want it."
   say "Remove the rule from Cursor Settings -> Rules -> User Rules by hand."
@@ -61,7 +63,8 @@ say "Linked Claude Code skill: $SKILL_LINK"
 # 3. Global Claude Code instructions
 if [[ -f "$CLAUDE_DIR/CLAUDE.md" ]]; then cp "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md.bak.$stamp"; fi
 upsert_block "$CLAUDE_DIR/CLAUDE.md" "$HARNESS_HOME/claude/CLAUDE.user.md"
-say "Updated $CLAUDE_DIR/CLAUDE.md (testing block)"
+upsert_block "$CLAUDE_DIR/CLAUDE.md" "$HARNESS_HOME/claude/CLAUDE.issues.md" equilux-issue-linking
+say "Updated $CLAUDE_DIR/CLAUDE.md (testing and issue-linking blocks)"
 
 # 4. Cursor user rule (Cursor keeps user rules in its settings, not in a file)
 if command -v pbcopy >/dev/null; then
