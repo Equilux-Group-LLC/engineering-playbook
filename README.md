@@ -21,7 +21,7 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Tests Changed" workflow templates |
 | [`templates/`](templates) | Starter files the bootstrap script copies into a project |
 | [`skills/testing-harness/`](skills/testing-harness) | Claude skill (Claude Code on your Mac and your claude.ai account) |
-| [`claude/`](claude) | Global Claude Code block and Cursor user rule |
+| [`claude/`](claude) | Global Claude Code blocks (testing, issue auto-close) and Cursor user rule |
 | [`scripts/`](scripts) | `install-local.sh` (Mac), `bootstrap-repo.sh` (per project), `sync-dotgithub.sh`, CI helpers, `build-skill-zip.sh` |
 | [`test/`](test) | Self-tests for every script (`bash test/run.sh`) |
 
@@ -33,8 +33,8 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Equilux-Group-LLC/engineering-playbook/main/scripts/install-local.sh)"
 ```
 
-This clones this repository to `~/Developer/engineering-playbook`, links the skill into `~/.claude/skills`, adds a
-marked block to `~/.claude/CLAUDE.md`, and copies a Cursor user rule to your clipboard to paste into
+This clones this repository to `~/Developer/engineering-playbook`, links the skill into `~/.claude/skills`, adds
+marked blocks to `~/.claude/CLAUDE.md` (testing, and the issue auto-close rule for commits and PRs), and copies a Cursor user rule to your clipboard to paste into
 **Cursor → Settings → Rules → User Rules**. Update later with `git -C ~/Developer/engineering-playbook pull`.
 Undo with `bash ~/Developer/engineering-playbook/scripts/install-local.sh --uninstall`.
 
