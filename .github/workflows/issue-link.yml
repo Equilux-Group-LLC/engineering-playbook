@@ -1,0 +1,36 @@
+name: Issue link (reusable)
+
+# A PR into the default branch must close its issue through GitHub's automation: a "Closes #N" / "Fixes #N" /
+# "Resolves #N" line in the description, or "No issue: <reason>". PRs into other branches pass.
+# Call from a workflow triggered on pull_request with types including edited.
+
+on:
+  workflow_call:
+    inputs:
+      toolkit-ref:
+        type: string
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  issue-link:
+    name: PR closes its issue
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out harness toolkit
+        uses: actions/checkout@v4
+        with:
+          repository: Equilux-Group-LLC/engineering-playbook
+          ref: ${{ inputs.toolkit-ref }}
+          path: .harness-toolkit
+      # PR text goes through env only; it is untrusted and must never be expanded into the script.
+      - name: Check
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: bash .harness-toolkit/scripts/issue-link.sh

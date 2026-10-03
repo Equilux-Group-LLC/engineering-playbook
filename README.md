@@ -17,12 +17,13 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | Path | What it is |
 | --- | --- |
 | [`playbook/testing-harness-playbook.md`](playbook/testing-harness-playbook.md) | **The playbook.** Canonical, technology-agnostic testing architecture and agent instructions |
-| [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `ai-review` (plus this repo's own `self-test` and `release`) |
+| [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
 | [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Tests Changed" workflow templates |
 | [`templates/`](templates) | Starter files the bootstrap script copies into a project |
 | [`skills/testing-harness/`](skills/testing-harness) | Claude skill (Claude Code on your Mac and your claude.ai account) |
 | [`claude/`](claude) | Global Claude Code block and Cursor user rule |
 | [`scripts/`](scripts) | `install-local.sh` (Mac), `bootstrap-repo.sh` (per project), `sync-dotgithub.sh`, CI helpers, `build-skill-zip.sh` |
+| [`AGENTS.md`](AGENTS.md) | Rules for agents working in this repository, including issue auto-close keywords |
 | [`test/`](test) | Self-tests for every script (`bash test/run.sh`) |
 
 ## Set up, once per place

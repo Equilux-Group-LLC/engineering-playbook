@@ -34,6 +34,19 @@ r2="$work/tc2"; new_repo "$r2"; b2="$(git -C "$r2" rev-parse HEAD)"
 mkdir -p "$r2/internal" "$r2/tests"; echo x > "$r2/internal/x.go"; echo x > "$r2/tests/x_test.go"; git -C "$r2" add -A; git -C "$r2" commit -qm go
 expect_status "tests-changed: tests/ directory counts" 0 bash -c "cd '$r2' && bash '$root/scripts/tests-changed.sh' $b2 HEAD"
 
+# ---- issue-link.sh ----
+il() { env BASE_REF="${2:-main}" DEFAULT_BRANCH=main PR_BODY="$1" bash "$root/scripts/issue-link.sh"; }
+expect_status "issue-link: Closes #N passes" 0 il $'## What & why\nCloses #12'
+expect_status "issue-link: Fixes owner/repo#N passes" 0 il 'Fixes Equilux-Group-LLC/engineering-playbook#3'
+expect_status "issue-link: lowercase resolves passes" 0 il 'resolves #7 and more'
+expect_status "issue-link: No issue with reason passes" 0 il 'No issue: typo in README'
+expect_status "issue-link: empty body fails" 1 il ''
+expect_status "issue-link: bare reference fails" 1 il 'Related to #12'
+expect_status "issue-link: placeholder fails" 1 il 'Closes #'
+expect_status "issue-link: No issue without reason fails" 1 il 'No issue:'
+expect_status "issue-link: keyword inside a word fails" 1 il 'Encloses #12'
+expect_status "issue-link: non-default base skips" 0 il '' release/1.x
+
 # ---- run-contract.sh ----
 p="$work/rc-npm"; mkdir -p "$p"; echo '{"scripts":{"verify":"echo ran-npm-verify"}}' > "$p/package.json"
 out="$(bash "$root/scripts/run-contract.sh" verify "$p" 2>&1)"

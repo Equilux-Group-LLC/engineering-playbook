@@ -1,0 +1,29 @@
+name: PR Issue Link
+
+# This repo's own use of the issue-link check, against the script in the PR itself.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-issue-link-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  issue-link:
+    name: PR closes its issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # PR text goes through env only; it is untrusted and must never be expanded into the script.
+      - name: Check
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: bash scripts/issue-link.sh
