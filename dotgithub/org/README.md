@@ -3,7 +3,7 @@
 Default community files for every repository in this organization that doesn't have its own:
 
 - `pull_request_template.md`: the default pull request template
-- `workflow-templates/`: "Equilux PR Checks" and "Equilux PR Tests Changed", offered under
+- `workflow-templates/`: "Equilux PR Checks", "Equilux PR Tests Changed" and "Equilux PR Issue Link", offered under
   **Actions → New workflow**
 
 The engineering and testing playbook, the shared CI checks, and the AI-agent rules live in

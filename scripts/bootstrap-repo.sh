@@ -67,6 +67,7 @@ fi
 # Starters
 starter "$toolkit/templates/workflows/pr-checks.yml" ".github/workflows/pr-checks.yml"
 starter "$toolkit/templates/workflows/pr-tests-changed.yml" ".github/workflows/pr-tests-changed.yml"
+starter "$toolkit/templates/workflows/pr-issue-link.yml" ".github/workflows/pr-issue-link.yml"
 starter "$toolkit/templates/lefthook.yml" "lefthook.yml"
 starter "$toolkit/templates/invariants/CATALOG.yaml" "test/invariants/CATALOG.yaml"
 
