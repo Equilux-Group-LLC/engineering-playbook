@@ -30,7 +30,7 @@ if [[ "$target" == "$toolkit" ]]; then
 fi
 
 version="$(git -C "$toolkit" describe --tags --always 2>/dev/null || echo unknown)"
-created=() refreshed=() skipped=()
+created=() refreshed=() skipped=() notes=()
 
 refresh() { # refresh <src> <dest>
   mkdir -p "$(dirname "$target/$2")"
@@ -66,6 +66,12 @@ fi
 
 # Starters
 starter "$toolkit/templates/workflows/pr-checks.yml" ".github/workflows/pr-checks.yml"
+# A pr-checks.yml from before the review moved to pr-review.yml still runs it; adding pr-review.yml would review twice.
+if [[ ! -e "$target/.github/workflows/pr-review.yml" ]] && grep -q 'ai-review.yml@' "$target/.github/workflows/pr-checks.yml"; then
+  notes+=("not created .github/workflows/pr-review.yml: pr-checks.yml already runs the AI review (move its review job there)")
+else
+  starter "$toolkit/templates/workflows/pr-review.yml" ".github/workflows/pr-review.yml"
+fi
 starter "$toolkit/templates/workflows/pr-tests-changed.yml" ".github/workflows/pr-tests-changed.yml"
 starter "$toolkit/templates/workflows/pr-issue-link.yml" ".github/workflows/pr-issue-link.yml"
 starter "$toolkit/templates/lefthook.yml" "lefthook.yml"
@@ -75,6 +81,7 @@ echo "Testing harness files ($version) in $target"
 for f in "${refreshed[@]}"; do echo "  refreshed  $f"; done
 for f in "${created[@]+"${created[@]}"}"; do echo "  created    $f"; done
 for f in "${skipped[@]+"${skipped[@]}"}"; do echo "  kept       $f (exists; use --force to replace)"; done
+for f in "${notes[@]+"${notes[@]}"}"; do echo "  $f"; done
 cat <<'NEXT'
 
 Next:

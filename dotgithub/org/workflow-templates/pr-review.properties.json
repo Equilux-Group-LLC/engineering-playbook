@@ -1,0 +1,6 @@
+{
+  "name": "Equilux PR Review",
+  "description": "Testing harness Gate 3: independent AI review of each ready pull request against the repo's rules file.",
+  "iconName": "octicon code-review",
+  "categories": ["Continuous integration"]
+}
