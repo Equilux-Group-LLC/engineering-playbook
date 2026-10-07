@@ -78,7 +78,7 @@ remove_block "$f"
 t="$work/proj"; new_repo "$t"; mkdir -p "$t/.github/workflows"; echo "mine" > "$t/.github/workflows/pr-checks.yml"
 expect_status "bootstrap: runs" 0 bash "$root/scripts/bootstrap-repo.sh" "$t"
 for path in docs/testing-harness-playbook.md .harness/run-contract.sh .cursor/rules/testing.mdc AGENTS.md \
-            .github/workflows/pr-tests-changed.yml .github/workflows/pr-issue-link.yml lefthook.yml test/invariants/CATALOG.yaml; do
+            .github/workflows/pr-review.yml .github/workflows/pr-tests-changed.yml .github/workflows/pr-issue-link.yml lefthook.yml test/invariants/CATALOG.yaml; do
   [[ -e "$t/$path" ]] && ok "bootstrap: creates $path" || bad "bootstrap: creates $path"
 done
 [[ "$(cat "$t/.github/workflows/pr-checks.yml")" == mine ]] && ok "bootstrap: keeps existing starter" || bad "bootstrap: keeps existing starter"
@@ -86,6 +86,17 @@ bash "$root/scripts/bootstrap-repo.sh" "$t" --force >/dev/null
 grep -q 'verify.yml@v1' "$t/.github/workflows/pr-checks.yml" && ok "bootstrap: --force replaces starter" || bad "bootstrap: --force replaces starter"
 grep -q 'issue-link.yml@v1' "$t/.github/workflows/pr-issue-link.yml" && grep -q 'edited' "$t/.github/workflows/pr-issue-link.yml" \
   && ok "bootstrap: issue-link starter calls the shared check on edits" || bad "bootstrap: issue-link starter calls the shared check on edits"
+grep -q 'ai-review.yml@v1' "$t/.github/workflows/pr-review.yml" && grep -q 'ready_for_review' "$t/.github/workflows/pr-review.yml" \
+  && ! grep -q 'ai-review.yml' "$t/.github/workflows/pr-checks.yml" \
+  && ok "bootstrap: AI review is its own starter, run again when marked ready" || bad "bootstrap: AI review is its own starter, run again when marked ready"
+for wf in pr-checks.yml pr-tests-changed.yml pr-issue-link.yml; do
+  ! grep -q 'ready_for_review' "$t/.github/workflows/$wf" && ok "bootstrap: $wf does not re-run when marked ready" || bad "bootstrap: $wf does not re-run when marked ready"
+done
+t2="$work/proj-old"; new_repo "$t2"; mkdir -p "$t2/.github/workflows"
+printf 'jobs:\n  review:\n    uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/ai-review.yml@v1\n' > "$t2/.github/workflows/pr-checks.yml"
+out="$(bash "$root/scripts/bootstrap-repo.sh" "$t2" 2>&1)"
+[[ ! -e "$t2/.github/workflows/pr-review.yml" && "$out" == *"pr-checks.yml already runs the AI review"* ]] \
+  && ok "bootstrap: no second AI review beside an older pr-checks.yml" || bad "bootstrap: no second AI review beside an older pr-checks.yml" "$out"
 [[ "$(grep -c 'BEGIN equilux-testing-harness' "$t/AGENTS.md")" == 1 ]] && ok "bootstrap: re-run keeps one AGENTS block" || bad "bootstrap: re-run keeps one AGENTS block"
 expect_status "bootstrap: refuses non-git dir" 1 bash "$root/scripts/bootstrap-repo.sh" "$work"
 
@@ -109,7 +120,7 @@ unzip -l "$z" | grep -q 'testing-harness/SKILL.md' && [[ "$(unzip -p "$z" testin
   && ok "build-skill-zip: contains SKILL.md and real playbook text" || bad "build-skill-zip"
 
 # ---- consistency ----
-for wf in pr-checks.yml pr-tests-changed.yml pr-issue-link.yml; do
+for wf in pr-checks.yml pr-review.yml pr-tests-changed.yml pr-issue-link.yml; do
   cmp -s "$root/templates/workflows/$wf" "$root/dotgithub/org/workflow-templates/$wf" && ok "templates: $wf in sync" || bad "templates: $wf in sync"
 done
 for t in dotgithub/org/pull_request_template.md dotgithub/personal/pull_request_template.md; do
@@ -127,7 +138,7 @@ run_sync() { env DOTGITHUB_ORG_URL="$work/org.git" DOTGITHUB_PERSONAL_URL="$work
 expect_status "sync-dotgithub: dry run" 0 run_sync --dry-run
 [[ -z "$(git --git-dir="$work/org.git" rev-parse -q --verify refs/heads/main)" ]] && ok "sync-dotgithub: dry run pushes nothing" || bad "sync-dotgithub: dry run pushes nothing"
 expect_status "sync-dotgithub: first sync (empty and existing repos)" 0 run_sync
-git --git-dir="$work/org.git" show main:workflow-templates/pr-checks.properties.json >/dev/null 2>&1 && git --git-dir="$work/org.git" show main:workflow-templates/pr-issue-link.properties.json >/dev/null 2>&1 && ok "sync-dotgithub: org repo has workflow templates" || bad "sync-dotgithub: org repo has workflow templates"
+git --git-dir="$work/org.git" show main:workflow-templates/pr-checks.properties.json >/dev/null 2>&1 && git --git-dir="$work/org.git" show main:workflow-templates/pr-issue-link.properties.json >/dev/null 2>&1 && git --git-dir="$work/org.git" show main:workflow-templates/pr-review.yml >/dev/null 2>&1 && ok "sync-dotgithub: org repo has workflow templates" || bad "sync-dotgithub: org repo has workflow templates"
 ! git --git-dir="$work/personal.git" show main:stale.txt >/dev/null 2>&1 && git --git-dir="$work/personal.git" show main:README.md >/dev/null 2>&1 && ok "sync-dotgithub: personal repo mirrors source" || bad "sync-dotgithub: personal repo mirrors source"
 before="$(git --git-dir="$work/org.git" rev-parse main)"
 out="$(run_sync 2>&1)"

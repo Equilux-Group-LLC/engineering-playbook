@@ -1,6 +1,6 @@
 {
   "name": "Equilux PR Checks",
-  "description": "Testing harness Gate 3: secret scan, verify with coverage gates, and independent AI review.",
+  "description": "Testing harness Gate 3: secret scan and verify with coverage gates.",
   "iconName": "octicon shield-check",
   "categories": ["Continuous integration"]
 }

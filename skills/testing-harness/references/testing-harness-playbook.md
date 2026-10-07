@@ -269,7 +269,7 @@ Formatter (auto-fix staged files), linter on staged files, secret scan on staged
 
 ### Gate 3: Pull request (GitHub Actions)
 
-Implemented by the shared reusable workflows in Part 11; a repository adopts them with two short caller
+Implemented by the shared reusable workflows in Part 11; a repository adopts them with short caller
 files. Required checks, all of which MUST pass:
 
 | Check | What it does |

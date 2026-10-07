@@ -1,11 +1,12 @@
 name: PR Checks
 
 # Testing harness playbook, Gate 3. Calls the shared Equilux workflows; keep the @ref and toolkit-ref equal.
+# Runs only when the code changes; the AI review is in PR Review so marking a draft ready re-runs only that.
 # Make these checks required with a branch ruleset where your plan allows (playbook Part 6).
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -25,17 +26,3 @@ jobs:
       # Path your `verify` command writes coverage to (LCOV or Cobertura). Delete the line to skip coverage gates.
       coverage-report: coverage/lcov.info
       changed-line-coverage: 80
-
-  review:
-    # Drafts, Dependabot and fork PRs have no access to secrets; they are reviewed once marked ready.
-    if: >-
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/ai-review.yml@v1
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

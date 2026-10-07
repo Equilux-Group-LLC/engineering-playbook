@@ -1,0 +1,31 @@
+name: PR Review
+
+# Testing harness playbook, Gate 3 "review": independent AI review. Separate from PR Checks because drafts are
+# skipped, so marking a PR ready for review must run the review without re-running secrets and verify.
+# Make "review" required with a branch ruleset where your plan allows (playbook Part 6).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Drafts, Dependabot and fork PRs have no access to secrets; they are reviewed once marked ready.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/ai-review.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
