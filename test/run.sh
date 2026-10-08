@@ -126,6 +126,12 @@ done
 for t in dotgithub/org/pull_request_template.md dotgithub/personal/pull_request_template.md; do
   cmp -s "$root/templates/pull_request_template.md" "$root/$t" && ok "templates: $t in sync" || bad "templates: $t in sync"
 done
+# Callers run these workflows with their own secrets, so an action tag moved upstream would run in every caller.
+unpinned="$(cd "$root" && grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:' .github/workflows/*.yml \
+  | grep -vE 'uses:[[:space:]]+(\./|Equilux-Group-LLC/engineering-playbook/)' \
+  | grep -vE '@[0-9a-f]{40}([[:space:]]|$)' || true)"
+[[ -z "$unpinned" ]] && ok "workflows: third-party actions pinned to commit SHAs" \
+  || bad "workflows: third-party actions pinned to commit SHAs" "pin to a full SHA with '# vX.Y.Z': ${unpinned//$'\n'/; }"
 cmp -s "$root/playbook/testing-harness-playbook.md" "$root/skills/testing-harness/references/testing-harness-playbook.md" \
   && ok "skill: playbook copy matches canonical" || bad "skill: playbook copy matches canonical" "copy playbook/testing-harness-playbook.md to skills/testing-harness/references/"
 
