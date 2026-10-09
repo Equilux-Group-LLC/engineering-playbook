@@ -1,0 +1,10 @@
+<svg viewBox="0 168 629.52 183" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Equilux">
+  <title>Equilux</title>
+  <text x="0" y="280" font-family="'Space Grotesk', system-ui, sans-serif" font-size="160" font-weight="600" fill="#0E2238">equilu</text>
+  <g fill="none" stroke="#D9A441" stroke-width="34" stroke-linecap="round">
+    <path d="M 516.52 185 L 612.52 263"/>
+    <path d="M 612.52 185 L 516.52 263"/>
+  </g>
+  <line x1="0" y1="344" x2="629.52" y2="344" stroke="#0E2238" stroke-width="4"/>
+  <circle cx="314.76" cy="344" r="7" fill="#D9A441"/>
+</svg>
