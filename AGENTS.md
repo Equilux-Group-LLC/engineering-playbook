@@ -16,3 +16,16 @@ branch (`main`). Let that automation close issues; never close an issue by hand 
 
 The `PR Issue Link` check (`scripts/issue-link.sh`) enforces the pull request rule. Other repositories can call
 `.github/workflows/issue-link.yml@v1`.
+
+## Design system
+
+- `design-system/versions/X.Y.Z.md` files are the source of truth. Never edit an approved version: corrections ship
+  as a new version (see `design-system/README.md`).
+- Files marked GENERATED are written by `python3 scripts/design-tokens.py`: `design-system/build/`,
+  `skills/equilux-design-system/tokens/`, `references/spec.md` and `references/changelog.md`. Rerun it and commit the
+  output with the spec change. `bash test/run.sh` fails if they are stale.
+- Hand-written references cite spec sections and token names. They never restate hex values; the tests reject any
+  hex that is not in the current tokens.
+- Open decisions live only in `design-system/open-questions.md`. Don't invent answers to them.
+- This repository is public. Keep business positioning and client details out, and don't name other organizations'
+  design systems that were used as references.

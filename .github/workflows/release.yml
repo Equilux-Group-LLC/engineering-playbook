@@ -1,7 +1,7 @@
 name: Release
 
 # Run from Actions -> Release -> Run workflow on main. Runs the self-tests, tags vX.Y.Z, publishes a GitHub
-# release with the Claude skill zip attached, and moves the major tag (v1) so callers pinned to @v1 pick it up.
+# release with the Claude skill zips attached, and moves the major tag (v1) so callers pinned to @v1 pick it up.
 
 on:
   workflow_dispatch:
@@ -47,8 +47,10 @@ jobs:
           git config --global user.name CI
           bash test/run.sh
 
-      - name: Build skill zip
-        run: bash scripts/build-skill-zip.sh dist/testing-harness-skill.zip
+      - name: Build skill zips
+        run: |
+          bash scripts/build-skill-zip.sh dist/testing-harness-skill.zip testing-harness
+          bash scripts/build-skill-zip.sh dist/equilux-design-system-skill.zip equilux-design-system
 
       - name: Tag and publish release
         env:
@@ -64,4 +66,4 @@ jobs:
           git tag -f "$major"
           git push origin "refs/tags/$tag"
           git push -f origin "refs/tags/$major"
-          gh release create "$tag" dist/testing-harness-skill.zip --title "$tag" --generate-notes --verify-tag
+          gh release create "$tag" dist/testing-harness-skill.zip dist/equilux-design-system-skill.zip --title "$tag" --generate-notes --verify-tag
