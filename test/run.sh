@@ -108,10 +108,21 @@ expect_status "install-local: first run" 0 run_install
 expect_status "install-local: second run (update)" 0 run_install
 [[ -L "$fakehome/.claude/skills/testing-harness" && -f "$fakehome/.claude/skills/testing-harness/SKILL.md" ]] && ok "install-local: skill symlink resolves" || bad "install-local: skill symlink resolves"
 [[ -s "$fakehome/.claude/skills/testing-harness/references/testing-harness-playbook.md" ]] && ok "install-local: playbook reachable through skill" || bad "install-local: playbook reachable through skill"
-[[ -L "$fakehome/.claude/skills/equilux-design-system" && -s "$fakehome/.claude/skills/equilux-design-system/tokens/tokens.css" ]] \
-  && ok "install-local: design-system skill symlink resolves" || bad "install-local: design-system skill symlink resolves"
+[[ ! -e "$fakehome/.claude/skills/equilux-design-system" && ! -L "$fakehome/.claude/skills/equilux-design-system" ]] \
+  && ok "install-local: no design-system skill link" || bad "install-local: no design-system skill link"
 [[ "$(grep -c 'BEGIN equilux-testing-harness' "$fakehome/.claude/CLAUDE.md")" == 1 ]] && grep -q 'My own rule.' "$fakehome/.claude/CLAUDE.md" && ok "install-local: CLAUDE.md block once, user text kept" || bad "install-local: CLAUDE.md block"
 [[ "$(grep -c 'BEGIN equilux-issue-linking' "$fakehome/.claude/CLAUDE.md")" == 1 ]] && grep -q 'Closes #N' "$fakehome/.claude/CLAUDE.md" && ok "install-local: CLAUDE.md issue-linking block once" || bad "install-local: CLAUDE.md issue-linking block once"
+# Older installs linked the design-system skill into the clone. The update must remove that link, even though the
+# update itself deletes its target, and must leave a link that points somewhere else alone.
+hh="$fakehome/Developer/engineering-playbook"
+ln -s "$hh/skills/equilux-design-system" "$fakehome/.claude/skills/equilux-design-system"
+expect_status "install-local: update with a retired skill link" 0 run_install
+[[ ! -e "$fakehome/.claude/skills/equilux-design-system" && ! -L "$fakehome/.claude/skills/equilux-design-system" ]] \
+  && ok "install-local: update removes the retired design-system link" || bad "install-local: update removes the retired design-system link"
+mkdir -p "$work/elsewhere"; ln -s "$work/elsewhere" "$fakehome/.claude/skills/equilux-design-system"
+expect_status "install-local: update with a design-system link that points elsewhere" 0 run_install
+[[ -L "$fakehome/.claude/skills/equilux-design-system" ]] && ok "install-local: keeps a design-system link that points elsewhere" || bad "install-local: keeps a design-system link that points elsewhere"
+rm "$fakehome/.claude/skills/equilux-design-system"
 expect_status "install-local: uninstall" 0 run_install --uninstall
 [[ ! -e "$fakehome/.claude/skills/testing-harness" && ! -e "$fakehome/.claude/skills/equilux-design-system" ]] && ! grep -q 'equilux-testing-harness\|equilux-issue-linking' "$fakehome/.claude/CLAUDE.md" && grep -q 'My own rule.' "$fakehome/.claude/CLAUDE.md" && ok "install-local: uninstall cleans up" || bad "install-local: uninstall cleans up"
 
@@ -120,22 +131,7 @@ z="$work/skill.zip"
 bash "$root/scripts/build-skill-zip.sh" "$z" >/dev/null
 unzip -l "$z" | grep -q 'testing-harness/SKILL.md' && [[ "$(unzip -p "$z" testing-harness/references/testing-harness-playbook.md | head -1)" == "# Testing Harness Playbook" ]] \
   && ok "build-skill-zip: contains SKILL.md and real playbook text" || bad "build-skill-zip"
-z="$work/design.zip"
-bash "$root/scripts/build-skill-zip.sh" "$z" equilux-design-system >/dev/null
-listing="$(unzip -l "$z")"
-missing=""
-for f in SKILL.md references/spec.md tokens/tokens.css tokens/tokens.json assets/logo/logo-primary.svg assets/logo/logo-reversed.svg; do
-  [[ "$listing" == *"equilux-design-system/$f"* ]] || missing+=" $f"
-done
-[[ -z "$missing" ]] && ok "build-skill-zip: design-system zip has spec, tokens and logos" || bad "build-skill-zip: design-system zip" "missing:$missing"
 expect_status "build-skill-zip: unknown skill fails" 1 bash "$root/scripts/build-skill-zip.sh" "$work/x.zip" no-such-skill
-
-# ---- design system ----
-expect_status "design-tokens: generated files match the specs" 0 python3 "$root/scripts/design-tokens.py" --check
-if command -v node >/dev/null; then
-  out="$(node -e "const p=require(process.argv[1]); const c=p.theme.extend.colors; if(!c.bg||!c.surface||!p.theme.extend.fontSize['body-md']) process.exit(1)" "$root/skills/equilux-design-system/tokens/tailwind.preset.js" 2>&1)" \
-    && ok "design-tokens: Tailwind preset loads in Node" || bad "design-tokens: Tailwind preset loads in Node" "$out"
-fi
 
 # ---- consistency ----
 for wf in pr-checks.yml pr-review.yml pr-tests-changed.yml pr-issue-link.yml; do
