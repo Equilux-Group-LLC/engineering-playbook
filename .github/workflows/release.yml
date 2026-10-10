@@ -47,10 +47,9 @@ jobs:
           git config --global user.name CI
           bash test/run.sh
 
-      - name: Build skill zips
+      - name: Build skill zip
         run: |
           bash scripts/build-skill-zip.sh dist/testing-harness-skill.zip testing-harness
-          bash scripts/build-skill-zip.sh dist/equilux-design-system-skill.zip equilux-design-system
 
       - name: Tag and publish release
         env:
@@ -66,4 +65,4 @@ jobs:
           git tag -f "$major"
           git push origin "refs/tags/$tag"
           git push -f origin "refs/tags/$major"
-          gh release create "$tag" dist/testing-harness-skill.zip dist/equilux-design-system-skill.zip --title "$tag" --generate-notes --verify-tag
+          gh release create "$tag" dist/testing-harness-skill.zip --title "$tag" --generate-notes --verify-tag

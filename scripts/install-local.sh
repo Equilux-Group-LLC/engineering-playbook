@@ -7,7 +7,8 @@
 # What it does (safe to re-run; backs up anything it replaces):
 #   1. Clones Equilux-Group-LLC/engineering-playbook to $HARNESS_HOME (default ~/Developer/engineering-playbook),
 #      or fast-forwards it if it already exists.
-#   2. Symlinks each Claude skill (testing-harness, equilux-design-system) from ~/.claude/skills into the clone.
+#   2. Symlinks each Claude skill (testing-harness) from ~/.claude/skills into the clone, and removes the
+#      equilux-design-system link older installs made (that skill no longer ships from this repository).
 #   3. Adds marked blocks to ~/.claude/CLAUDE.md: one pointing every Claude Code session at the playbook, one with
 #      the issue auto-close rule for commits and pull requests.
 #   4. Copies the Cursor user rule to the clipboard for you to paste into Cursor Settings -> Rules.
@@ -17,16 +18,33 @@ set -euo pipefail
 REPO_URL="${HARNESS_REPO_URL:-https://github.com/Equilux-Group-LLC/engineering-playbook.git}"
 HARNESS_HOME="${HARNESS_HOME:-$HOME/Developer/engineering-playbook}"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-SKILLS=(testing-harness equilux-design-system)
+SKILLS=(testing-harness)
+# Skills this repository used to ship. Older installs left a symlink for each into the clone.
+RETIRED_SKILLS=(equilux-design-system)
 stamp="$(date +%Y%m%d%H%M%S)"
 
 say() { printf '%s\n' "$*"; }
+
+# Remove links for retired skills, but only ones that point into the clone. A link pointing anywhere else, or a real
+# directory, was put there by someone else and stays.
+remove_retired_links() {
+  local skill link target
+  for skill in "${RETIRED_SKILLS[@]}"; do
+    link="$CLAUDE_DIR/skills/$skill"
+    [[ -L "$link" ]] || continue
+    target="$(readlink "$link")"
+    case "$target" in
+      "$HARNESS_HOME"/*) rm "$link"; say "Removed retired skill link: $link" ;;
+    esac
+  done
+}
 
 if [[ "${1:-}" == "--uninstall" ]]; then
   for skill in "${SKILLS[@]}"; do
     link="$CLAUDE_DIR/skills/$skill"
     if [[ -L "$link" ]]; then rm "$link"; say "Removed $link"; fi
   done
+  remove_retired_links
   if [[ -f "$HARNESS_HOME/scripts/lib/managed-block.sh" && -f "$CLAUDE_DIR/CLAUDE.md" ]]; then
     # shellcheck source=lib/managed-block.sh
     source "$HARNESS_HOME/scripts/lib/managed-block.sh"
@@ -56,6 +74,7 @@ source "$HARNESS_HOME/scripts/lib/managed-block.sh"
 
 # 2. Claude Code skills
 mkdir -p "$CLAUDE_DIR/skills"
+remove_retired_links
 for skill in "${SKILLS[@]}"; do
   link="$CLAUDE_DIR/skills/$skill"
   if [[ -e "$link" && ! -L "$link" ]]; then
