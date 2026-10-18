@@ -249,7 +249,10 @@ frontmatter='import sys, yaml; fm = yaml.safe_load(open(sys.argv[1]).read().spli
 tools="$(python3 -c "$frontmatter; print(fm['tools'])" "$root/claude/agents/test-auditor.md" 2>&1)"
 [[ "$tools" == "Read, Grep, Glob, Bash(git diff:*), Bash(git log:*)" ]] \
   && ok "agents: test-auditor tools are read-only" || bad "agents: test-auditor tools are read-only" "$tools"
-auditor_hook="$(python3 -c "$frontmatter; print(fm['hooks']['PreToolUse'][0]['hooks'][0]['command'])" "$root/claude/agents/test-auditor.md" 2>/dev/null)"
+auditor_hook="$(python3 -c "$frontmatter; print(fm['hooks']['PreToolUse'][0]['hooks'][0]['command'])" "$root/claude/agents/test-auditor.md" 2>"$work/auditor.log")"
+# An empty command would exit 0 and make the "may run" cases pass without testing anything.
+[[ "$auditor_hook" == *python3* ]] && ok "agents: test-auditor Bash hook reads from its frontmatter" \
+  || bad "agents: test-auditor Bash hook reads from its frontmatter" "$(tail -1 "$work/auditor.log")"
 for c in 'git diff --merge-base origin/main' 'git log --oneline -5'; do
   printf '{"tool_input":{"command":"%s"}}' "$c" | bash -c "$auditor_hook" 2>/dev/null && ok "agents: test-auditor may run '$c'" || bad "agents: test-auditor may run '$c'"
 done
