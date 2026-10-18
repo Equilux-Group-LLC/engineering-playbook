@@ -9,8 +9,25 @@ The full specification is `references/testing-harness-playbook.md`. Read the par
 Part 4 (layers and the change-type matrix) for any code change, Part 5 (invariant catalog) when data paths,
 roles or credentials change, Part 9 (bootstrap) when setting a project up, Part 8 for maintenance duties.
 
+If `references/` is missing (a partial install or an old zip), read the playbook from the first place that
+has it: the project's `docs/testing-harness-playbook.md`, `~/Developer/engineering-playbook/playbook/`, or
+<https://github.com/Equilux-Group-LLC/engineering-playbook/blob/main/playbook/testing-harness-playbook.md>.
+If none is reachable, follow the rules in this file and say that you could not read the playbook.
+
 If the project has its own `AGENTS.md`, `CLAUDE.md` or `docs/testing-harness-playbook.md`, those take
 precedence over this skill where they differ.
+
+## Platform profile and the `verify` skill
+
+Read `.equilux.yml` at the repository root if it exists. Its `profile` names the platform profile,
+`profiles/<platform>.md` in the engineering-playbook repository (`~/Developer/engineering-playbook/profiles/`
+or <https://github.com/Equilux-Group-LLC/engineering-playbook/tree/main/profiles>). The profile gives the tools
+for each layer and command, the `verify` time budget, the `verify:fast` stages, coverage floors and the
+reviewer's rubric additions. Without `.equilux.yml`, use the playbook's defaults (Parts 4, 6 and 7).
+
+Before every commit that changes code, run the repository's `verify` skill (`.claude/skills/verify/SKILL.md`,
+Gate 0): `verify:fast`, a `/simplify` pass on changed source only, `verify:fast` again. If the repository has
+no `verify` skill, run `.harness/run-contract.sh verify:fast` yourself, skip the cleanup pass, and say so.
 
 ## On every code change
 

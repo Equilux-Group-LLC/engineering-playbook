@@ -17,9 +17,10 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | Path | What it is |
 | --- | --- |
 | [`playbook/testing-harness-playbook.md`](playbook/testing-harness-playbook.md) | **The playbook.** Canonical, technology-agnostic testing architecture and agent instructions |
+| [`profiles/`](profiles) | Platform profiles (`web`, `ios`): the tools, time budgets, coverage floors, rubric additions and seed defects that implement the playbook on each platform |
 | [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review`, `conformance` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
 | [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Review" / "Equilux PR Tests Changed" / "Equilux PR Issue Link" workflow templates |
-| [`templates/`](templates) | Starter files the bootstrap script copies into a project |
+| [`templates/`](templates) | Starter files the bootstrap script copies into a project, and the `verify` skill platform templates copy (`templates/claude/skills/verify/`) |
 | [`skills/testing-harness/`](skills/testing-harness) | Claude skill (Claude Code on your Mac and your claude.ai account) |
 | [`claude/`](claude) | Global Claude Code blocks (testing, issue auto-close), the read-only `test-auditor` subagent, and Cursor user rule |
 | [`scripts/`](scripts) | `install-local.sh` (Mac), `bootstrap-repo.sh` (per project), `sync-dotgithub.sh`, `guard-test-weakening.sh` (Claude Code hook), `check-conformance.sh`, CI helpers, `build-skill-zip.sh` |
