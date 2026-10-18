@@ -138,6 +138,15 @@ rm "$nc/.equilux.yml" "$nc/.github/workflows/pr-review.yml" "$nc/test/invariants
 out="$(cg "$nc" 2>&1)"
 [[ "$out" == *"FAIL .equilux.yml: present"* && "$out" == *"FAIL review: a workflow calls ai-review.yml@v1"* && "$out" == *"FAIL catalog: test/invariants/CATALOG.yaml exists"* ]] \
   && ok "conformance: reports missing .equilux.yml, review caller and catalog" || bad "conformance: reports missing .equilux.yml, review caller and catalog" "$out"
+# A profile's catalog path wins over the default; its mention of the toolkit's templates/ copy does not.
+ftk="$work/fake-toolkit"; mkdir -p "$ftk/scripts" "$ftk/profiles"; cp "$root/scripts/check-conformance.sh" "$root/scripts/run-contract.sh" "$ftk/scripts/"
+printf 'Starts from `templates/invariants/CATALOG.yaml`; apps keep it in `app/invariants/CATALOG.yaml`.\n' > "$ftk/profiles/fake.md"
+sed 's/^profile: web/profile: fake/' "$good/.equilux.yml" > "$good/.equilux.yml.new" && mv "$good/.equilux.yml.new" "$good/.equilux.yml"
+out="$(bash "$ftk/scripts/check-conformance.sh" "$good" 2>&1)"
+[[ "$out" == *"FAIL catalog: app/invariants/CATALOG.yaml exists"* ]] && ok "conformance: uses the profile's catalog path, not its templates/ mention" \
+  || bad "conformance: uses the profile's catalog path, not its templates/ mention" "$out"
+mkdir -p "$good/app/invariants"; cp "$root/templates/invariants/CATALOG.yaml" "$good/app/invariants/"
+expect_status "conformance: passes with the catalog at the profile's path" 0 bash "$ftk/scripts/check-conformance.sh" "$good"
 
 # ---- managed-block.sh ----
 # shellcheck source=../scripts/lib/managed-block.sh

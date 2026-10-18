@@ -3,7 +3,7 @@
 # Usage: check-conformance.sh [repo-dir]      exit 0 = conforms, 1 = at least one check failed
 #   1. `verify` and `verify:fast` resolve through run-contract.sh (nothing is run)
 #   2. the invariant catalog parses as a YAML list: test/invariants/CATALOG.yaml, or the first */CATALOG.yaml path
-#      named in profiles/<profile>.md when .equilux.yml names a profile this toolkit has
+#      outside templates/ named in profiles/<profile>.md when .equilux.yml names a profile this toolkit has
 #   3. AGENTS.md (or CLAUDE.md) has the equilux-testing-harness block
 #   4. a workflow calls ai-review.yml@v1, and none calls it at another ref
 #   5. .equilux.yml names the playbook version and profile (and template_ref when it names a template)
@@ -34,7 +34,8 @@ done
 profile="$(equilux profile)"
 catalog="test/invariants/CATALOG.yaml"
 if [[ -n "$profile" && -f "$toolkit/profiles/$profile.md" ]]; then
-  named="$(grep -oE '`[^` ]*CATALOG\.yaml`' "$toolkit/profiles/$profile.md" | head -1 | tr -d '`')"
+  # Profiles also cite the toolkit's own templates/ copy, which is not a path in the app repository.
+  named="$(grep -oE '`[^` ]*CATALOG\.yaml`' "$toolkit/profiles/$profile.md" | tr -d '`' | grep -v '^templates/' | head -1)"
   [[ -n "$named" ]] && catalog="$named"
 fi
 parse_list() { # parse_list <file>: exit 0 if the file is a YAML list
