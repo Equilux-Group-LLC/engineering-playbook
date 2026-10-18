@@ -3,10 +3,13 @@
 # repository uses. Usage: run-contract.sh <command> [repo-dir]
 #   e.g. run-contract.sh verify
 # Detection order: mise tasks, package.json scripts, justfile, Makefile, Taskfile.
+#        run-contract.sh --resolve <command> [repo-dir]   prints the runner line instead of running it
 # Exits 2 if no runner defines the command.
 set -euo pipefail
 
-cmd="${1:?usage: run-contract.sh <command> [repo-dir]}"
+resolve=false
+if [[ "${1:-}" == "--resolve" ]]; then resolve=true; shift; fi
+cmd="${1:?usage: run-contract.sh [--resolve] <command> [repo-dir]}"
 dir="${2:-.}"
 cd "$dir"
 
@@ -31,16 +34,18 @@ package_runner() {
   fi
 }
 
+run() { if [[ "$resolve" == true ]]; then echo "$*"; exit 0; fi; exec "$@"; }
+
 if has_mise_task; then
-  exec mise run "$cmd"
+  run mise run "$cmd"
 elif has_package_script; then
-  exec "$(package_runner)" run "$cmd"
+  run "$(package_runner)" run "$cmd"
 elif [[ -f justfile || -f Justfile ]] && just --summary 2>/dev/null | tr ' ' '\n' | grep -qx "$cmd"; then
-  exec just "$cmd"
+  run just "$cmd"
 elif [[ -f Makefile ]] && grep -Eq "^${cmd//:/\\:}:" Makefile; then
-  exec make "$cmd"
+  run make "$cmd"
 elif [[ -f Taskfile.yml || -f Taskfile.yaml ]] && task --list-all 2>/dev/null | grep -Eq "^\* ${cmd}:"; then
-  exec task "$cmd"
+  run task "$cmd"
 fi
 
 echo "run-contract: no task runner in $(pwd) defines '$cmd'." >&2

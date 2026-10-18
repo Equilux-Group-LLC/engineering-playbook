@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(.harness/run-contract.sh *)",
+      "Bash(mise run verify*)",
+      "Bash(git diff *)",
+      "Bash(git status*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.harness/guard-test-weakening.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.harness/run-contract.sh format \"$CLAUDE_PROJECT_DIR\" >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
+  }
+}

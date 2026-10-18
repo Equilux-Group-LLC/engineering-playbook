@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Add the testing harness starter files to a repository (playbook Part 11).
 # Usage: bootstrap-repo.sh [target-repo-dir] [--force]
-#   Managed files (playbook copy, runner, Cursor rule, AGENTS.md/CLAUDE.md block) are always refreshed.
-#   Starter files (CI callers, lefthook.yml, invariant catalog) are created only if absent, or with --force.
+#   Managed files (playbook copy, runner, test-weakening guard, Cursor rule, AGENTS.md/CLAUDE.md block) are always refreshed.
+#   Starter files (CI callers, lefthook.yml, invariant catalog, .claude/settings.json) are created only if absent, or with --force.
 # Run it from your local clone of Equilux-Group-LLC/engineering-playbook (install-local.sh puts one in ~/Developer).
 set -euo pipefail
 
@@ -54,7 +54,8 @@ mkdir -p "$target/docs"
 } > "$target/docs/testing-harness-playbook.md"
 refreshed+=("docs/testing-harness-playbook.md")
 refresh "$toolkit/scripts/run-contract.sh" ".harness/run-contract.sh"
-chmod +x "$target/.harness/run-contract.sh"
+refresh "$toolkit/scripts/guard-test-weakening.sh" ".harness/guard-test-weakening.sh"
+chmod +x "$target/.harness/run-contract.sh" "$target/.harness/guard-test-weakening.sh"
 refresh "$toolkit/templates/cursor/testing.mdc" ".cursor/rules/testing.mdc"
 
 upsert_block "$target/AGENTS.md" "$toolkit/templates/AGENTS.testing.md"
@@ -76,6 +77,10 @@ starter "$toolkit/templates/workflows/pr-tests-changed.yml" ".github/workflows/p
 starter "$toolkit/templates/workflows/pr-issue-link.yml" ".github/workflows/pr-issue-link.yml"
 starter "$toolkit/templates/lefthook.yml" "lefthook.yml"
 starter "$toolkit/templates/invariants/CATALOG.yaml" "test/invariants/CATALOG.yaml"
+starter "$toolkit/templates/claude/settings.json" ".claude/settings.json"
+if [[ " ${skipped[*]+"${skipped[*]}"} " == *" .claude/settings.json "* ]] && ! grep -q 'guard-test-weakening' "$target/.claude/settings.json"; then
+  notes+=("add the hooks from templates/claude/settings.json to .claude/settings.json by hand (it exists, so it was kept)")
+fi
 
 echo "Testing harness files ($version) in $target"
 for f in "${refreshed[@]}"; do echo "  refreshed  $f"; done
