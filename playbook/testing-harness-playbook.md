@@ -323,7 +323,15 @@ files. Required checks, all of which MUST pass:
 | `coverage` | Changed-line coverage ≥ the profile's floor (80% by default); total coverage must not decrease (ratchet); per-target floors where the profile sets them |
 | `tests-changed` | Fails if source files changed but no test files changed, unless the PR has the `no-test-needed` label **and** a one-line reason in the PR body |
 | `e2e` | L5 suite (when applicable) |
-| `review` | Independent AI review against the project rules file; verdict must be READY or every finding dismissed with a reason |
+| `review` | Independent AI review against the project rules file and the profile's review rubric; verdict must be READY or every finding dismissed with a reason |
+
+The `review` check has its own acceptance test: the seeded-defect test in the repository's profile
+(`profiles/<platform>/seeded-defect-test.md`). A throwaway, never-merged PR plants known defects, and the
+review MUST report every one at BLOCKER on the right file and line, with no bogus findings. Until a
+repository has passed it, its review layer is not in place. Re-run it when the review prompt, the profile's
+rubric, the rules file or the review model changes, and record each result in the profile's `results/`. The
+reviewer reads CI results (`gh pr checks`) rather than running tests itself, and names specifically what it
+could not verify.
 
 ### Coverage thresholds
 
@@ -456,7 +464,7 @@ Do one phase per pull request. Each phase ends with its acceptance check passing
 | 3. Unit tests | Test discovery by pattern. Add a clock/random injection seam. Cover the core business rules. | Coverage report produced |
 | 4. Integration tests | Test database builder that applies all migrations; request helper with `signInAs(role)`; fakes for each external service. One test per route per the matrix. Migration tests. | Every route has at least one integration test |
 | 5. Invariants | Write `test/invariants/CATALOG` with the owner. Build the authorization matrix, unknown-field probe, canary egress scan, secret-leak and revocation tests. | Every catalog entry names a passing test |
-| 6. CI gates | Workflows for Gate 3 (all checks in Part 6), including `tests-changed` and changed-line coverage. Configure the ruleset, or the Free-private fallback. | A deliberately test-less PR is rejected |
+| 6. CI gates | Workflows for Gate 3 (all checks in Part 6), including `tests-changed` and changed-line coverage. Configure the ruleset, or the Free-private fallback. | A deliberately test-less PR is rejected, and the profile's seeded-defect test passes: `review` reports every seed at BLOCKER |
 | 7. Local hooks | lefthook (or equivalent) for Gates 1 and 2, installed by `setup`. | Committing a file with a planted fake secret is blocked |
 | 8. Deploy checks | L4 tests for deploy scripts; L6 smoke per environment; L7 production pipeline if production exists. | Smoke passes after a development deploy |
 | 9. End-to-end (if UI) | Headless browser suite for the owner-approved critical journeys; mobile viewport if mobile-first. | Suite passes in CI in < 3 min |
@@ -513,7 +521,7 @@ One canonical source, everything else points to it or syncs from it.
 | Concern | Lives in | Tier |
 | --- | --- | --- |
 | Rules: layers, change-type matrix, gates, command names, principles | This playbook | 1 |
-| Tools per layer and command, `verify` budget, `verify:fast` stages, coverage floors, rubric additions, seed defects, agent tooling, platform setup | `profiles/<platform>.md` | 1 |
+| Tools per layer and command, `verify` budget, `verify:fast` stages, coverage floors, rubric additions, seed defects, agent tooling, platform setup | `profiles/<platform>.md`; review rubric, seeded-defect test and its results in `profiles/<platform>/` | 1 |
 | Shared scripts and CI (`run-contract.sh`, reusable workflows, coverage and tests-changed checks), the `verify` skill template | `scripts/`, `.github/workflows/`, `templates/` here | 1 |
 | Concrete `verify` / `verify:fast`, CI callers and runners, rubric text in `AGENTS.md`, seed-defects script, starter invariants, stack ADRs | The platform template | 2 |
 | Product "never" rules, journeys, business rules, coverage baseline, raised floors | The app repo (`CATALOG.yaml`, `AGENTS.md`, `.coverage-baseline`) | 3 |
@@ -542,9 +550,9 @@ template from `template_ref` to its latest release and apply that diff by pull r
 | Workflow | Gate 3 check | Key inputs |
 | --- | --- | --- |
 | `secret-scan.yml` | `secrets` | `gitleaks-version` |
-| `verify.yml` | `verify`, `coverage` | `verify-command` (default `verify`), `setup-command`, `coverage-report`, `changed-line-coverage` (default 80), `toolkit-ref` |
+| `verify.yml` | `verify`, `coverage` | `verify-command` (default `verify`), `setup-command`, `coverage-report`, `changed-line-coverage` (default 80), `toolkit-ref`, `runs-on` (JSON, default `'"ubuntu-latest"'`; for example `'["self-hosted","macOS","ARM64","ios"]'`) |
 | `tests-changed.yml` | `tests-changed` | `source-pattern`, `test-pattern`, `opt-out-label` (default `no-test-needed`) |
-| `ai-review.yml` | `review` | `rules-file` (default `AGENTS.md`); secret `CLAUDE_CODE_OAUTH_TOKEN` |
+| `ai-review.yml` | `review` | `rules-file` (default `AGENTS.md`), `profile` (`base`, `web` or `ios`; default `base`) appends `profiles/<profile>/review-rubric.md`, `toolkit-ref`; secret `CLAUDE_CODE_OAUTH_TOKEN` |
 
 `verify.yml` installs the toolchain from `mise.toml` / `.tool-versions` when present (any language), and
 otherwise detects Node, Python and Go. Coverage gates read LCOV or Cobertura reports. The total-coverage
@@ -554,11 +562,24 @@ ratchet compares against a committed `.coverage-baseline` file (raise it when co
 
 1. `bash ~/Developer/engineering-playbook/scripts/bootstrap-repo.sh /path/to/project`
 2. Commit the result on a branch and open a pull request.
-3. Add the repository secret `CLAUDE_CODE_OAUTH_TOKEN` and install the Claude GitHub App on the repository.
+3. Install the Claude GitHub App on the repository (selected repositories only), then add the review token.
+   Create it with `claude setup-token`, check it works with `claude -p "say ok"` before storing it, and store
+   it with `--body`, not the interactive prompt (which has corrupted pasted tokens, seen as
+   `401 OAuth access token is invalid` on every run):
+   `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo OWNER/REPO --body "$(pbpaste)"`.
+   In `pr-review.yml`, set `profile:` to the profile named in `.equilux.yml`.
 4. Create the label `no-test-needed`.
 5. Where the plan allows, add a branch ruleset requiring the checks `secrets`, `verify`, `tests-changed` and
    `review`.
 6. Ask the agent to run Part 9.
+
+**The review workflow must already be on the default branch.** `claude-code-action` runs only when the
+workflow file that calls it (`.github/workflows/pr-review.yml`) is byte-identical on the repository's default
+branch, so a pull request can't rewrite the reviewer that reviews it. The PR that adds or edits that file
+shows a red "No review posted" check by design; merge it, and the next PR is reviewed. A change to the review
+setup takes effect only after it lands on the default branch. If pull requests target a branch other than the
+default (for example `develop`), the file must be identical on both. Once it is in place, run the profile's
+seeded-defect test (Part 6).
 
 ### Changing the playbook
 

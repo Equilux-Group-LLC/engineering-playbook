@@ -3,6 +3,8 @@ name: PR Review
 # Testing harness playbook, Gate 3 "review": independent AI review. Separate from PR Checks because drafts are
 # skipped, so marking a PR ready for review must run the review without re-running secrets and verify.
 # Make "review" required with a branch ruleset where your plan allows (playbook Part 6).
+# This file must be byte-identical on the default branch before the review runs (playbook Part 11), so the PR
+# that adds or edits it shows a red "No review posted" check by design.
 
 on:
   pull_request:
@@ -23,6 +25,8 @@ jobs:
       github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
     uses: Equilux-Group-LLC/engineering-playbook/.github/workflows/ai-review.yml@v1
+    # with:
+    #   profile: web   # base | web | ios: adds profiles/<profile>/review-rubric.md; match .equilux.yml
     permissions:
       contents: read
       pull-requests: write

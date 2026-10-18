@@ -287,6 +287,50 @@ for prof in "$root"/profiles/*.md; do
     && ok "profiles: $(basename "$prof") sets verify:fast and a verify budget" || bad "profiles: $(basename "$prof") sets verify:fast and a verify budget"
 done
 for prof in web ios; do [[ -f "$root/profiles/$prof.md" ]] && ok "profiles: $prof.md exists" || bad "profiles: $prof.md exists"; done
+# ai-review.yml's `profile` input reads profiles/<p>/review-rubric.md; the seeded-defect test is the review's acceptance check.
+for prof in web ios; do
+  for doc in review-rubric.md seeded-defect-test.md; do
+    [[ -s "$root/profiles/$prof/$doc" ]] && grep -q "($prof/$doc)" "$root/profiles/$prof.md" \
+      && ok "profiles: $prof/$doc exists and $prof.md links it" || bad "profiles: $prof/$doc exists and $prof.md links it"
+  done
+done
+for res in "$root"/profiles/*/seeded-defect-test.md; do
+  d="$(dirname "$res")"; missing=""
+  for rec in $(grep -oE '\(results/[^)]+\.md\)' "$res" | tr -d '()'); do [[ -f "$d/$rec" ]] || missing+=" $rec"; done
+  [[ -z "$missing" ]] && ok "profiles: $(basename "$d") seeded-defect results exist" || bad "profiles: $(basename "$d") seeded-defect results exist" "missing:$missing"
+done
+[[ -n "$(ls "$root"/profiles/web/results/*.md 2>/dev/null)" ]] && ok "profiles: web has a recorded seeded-defect result" || bad "profiles: web has a recorded seeded-defect result"
+
+# ---- review-rubric.sh ----
+rr() { bash "$root/scripts/review-rubric.sh" "$root" "$1"; }
+out="$(rr base 2>&1)"; st=$?
+[[ $st == 0 && -z "$out" ]] && ok "review-rubric: base prints nothing" || bad "review-rubric: base prints nothing" "exit $st: $out"
+for prof in web ios; do
+  out="$(rr "$prof" 2>&1)"
+  [[ "$out" == "$(cat "$root/profiles/$prof/review-rubric.md")" ]] && ok "review-rubric: $prof prints its rubric" || bad "review-rubric: $prof prints its rubric" "${out:0:200}"
+done
+expect_status "review-rubric: unknown profile fails" 1 rr android
+expect_status "review-rubric: empty profile fails" 1 rr ''
+for p in ../web web/../ios /etc 'web ios' Web; do
+  expect_status "review-rubric: rejects '$p'" 1 rr "$p"
+done
+# A rubric file that exists outside profiles/ must still be refused, not just a missing one.
+ftk2="$work/rubric-toolkit"; mkdir -p "$ftk2/profiles" "$ftk2/outside"; echo leaked > "$ftk2/outside/review-rubric.md"
+expect_status "review-rubric: refuses an existing file outside profiles/" 1 bash "$root/scripts/review-rubric.sh" "$ftk2" ../outside
+
+# ---- review and verify workflows ----
+air="$root/.github/workflows/ai-review.yml"
+grep -q 'Bash(gh pr checks:\*)' "$air" && grep -q 'do not run tests, builds or linters yourself' "$air" \
+  && ok "ai-review: reviewer reads check results instead of running tests" || bad "ai-review: reviewer reads check results instead of running tests"
+grep -q 'identical copy of that file is on the default branch' "$air" \
+  && ok "ai-review: no-review error explains the default-branch rule" || bad "ai-review: no-review error explains the default-branch rule"
+grep -q 'scripts/review-rubric.sh .harness-toolkit "$PROFILE"' "$air" && grep -q 'steps.rubric.outputs.text' "$air" \
+  && ok "ai-review: profile rubric is loaded and appended" || bad "ai-review: profile rubric is loaded and appended"
+vw="$root/.github/workflows/verify.yml"
+grep -q 'runs-on: ${{ fromJSON(inputs.runs-on) }}' "$vw" && grep -q "default: '\"ubuntu-latest\"'" "$vw" \
+  && ok "verify: runs-on input defaults to ubuntu-latest via fromJSON" || bad "verify: runs-on input defaults to ubuntu-latest via fromJSON"
+grep -qE '^    #   profile: ' "$root/templates/workflows/pr-review.yml" \
+  && ok "templates: pr-review.yml shows the profile input" || bad "templates: pr-review.yml shows the profile input"
 vs="$root/templates/claude/skills/verify/SKILL.md"
 [[ "$(sed -n 2p "$vs")" == "name: verify" ]] && grep -q 'run-contract.sh verify:fast' "$vs" \
   && ok "templates: verify skill names itself and runs verify:fast" || bad "templates: verify skill names itself and runs verify:fast"
