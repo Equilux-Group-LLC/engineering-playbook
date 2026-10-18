@@ -3,7 +3,7 @@
 A portable, technology-agnostic specification for an automated test harness that an AI coding agent
 (Cursor, Claude Code, or similar) can **set up once and then keep current on every change**.
 
-Version 1.1.0 (2026-10-18). The canonical copy lives at
+Version unreleased (the release workflow stamps this from the tag). The canonical copy lives at
 <https://github.com/Equilux-Group-LLC/engineering-playbook/blob/main/playbook/testing-harness-playbook.md>. Every other copy
 (your Mac, your Claude account skill, individual repositories) is a pointer or a synced copy of that file.
 Propose changes there by pull request; don't fork the rules per project. Platform tool choices belong in a
@@ -441,6 +441,7 @@ with reasons.
 | Every change | Apply the Part 4 matrix. Update test builders when the schema changes. |
 | Every failing CI run | Root-cause it. "Flaky" isn't a root cause: make the test deterministic in the same PR or open a tracked issue with the failing seed/log. |
 | Monthly (or on the maintenance prompt) | Remove dead tests for deleted code; raise the coverage ratchet if coverage rose; list the 10 slowest tests and speed them up; confirm every invariant catalog entry still has a passing test; update tool versions. |
+| After any release | Re-upload the skill zip (`testing-harness-skill.zip` from the GitHub release) to the Claude account (Settings -> Capabilities -> Skills) and confirm `references/` is listed in the uploaded skill. |
 
 ---
 
