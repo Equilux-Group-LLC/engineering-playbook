@@ -149,6 +149,22 @@ unpinned="$(cd "$root" && grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:' .github/
 cmp -s "$root/playbook/testing-harness-playbook.md" "$root/skills/testing-harness/references/testing-harness-playbook.md" \
   && ok "skill: playbook copy matches canonical" || bad "skill: playbook copy matches canonical" "copy playbook/testing-harness-playbook.md to skills/testing-harness/references/"
 
+# Every profile carries the sections profiles/README.md requires, in order, so profiles compare side by side.
+sections=("1. Scope" "2. Layer map" "3. Command map" "4. Gates" "5. Coverage floors" "6. Invariant defaults" \
+          "7. Rubric additions" "8. Seed defects" "9. Agent tooling" "10. Local setup" "11. Superseded guidance")
+for prof in "$root"/profiles/*.md; do
+  [[ "$(basename "$prof")" == README.md ]] && continue
+  got="$(grep -E '^## [0-9]+\. ' "$prof" | sed 's/^## //')"; want="$(printf '%s\n' "${sections[@]}")"
+  [[ "$got" == "$want" ]] && ok "profiles: $(basename "$prof") has the required sections" \
+    || bad "profiles: $(basename "$prof") has the required sections" "got: ${got//$'\n'/; }"
+  grep -q '`verify:fast`' "$prof" && grep -Eq '^\| `verify` \|.*\*\*< [0-9]+ min' "$prof" \
+    && ok "profiles: $(basename "$prof") sets verify:fast and a verify budget" || bad "profiles: $(basename "$prof") sets verify:fast and a verify budget"
+done
+for prof in web ios; do [[ -f "$root/profiles/$prof.md" ]] && ok "profiles: $prof.md exists" || bad "profiles: $prof.md exists"; done
+vs="$root/templates/claude/skills/verify/SKILL.md"
+[[ "$(sed -n 2p "$vs")" == "name: verify" ]] && grep -q 'run-contract.sh verify:fast' "$vs" \
+  && ok "templates: verify skill names itself and runs verify:fast" || bad "templates: verify skill names itself and runs verify:fast"
+
 # ---- sync-dotgithub.sh (against local bare repos) ----
 git init -q --bare "$work/org.git"; git init -q --bare "$work/personal.git"
 seed="$work/seed"; git clone -q "$work/personal.git" "$seed" 2>/dev/null

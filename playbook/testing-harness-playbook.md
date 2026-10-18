@@ -3,28 +3,44 @@
 A portable, technology-agnostic specification for an automated test harness that an AI coding agent
 (Cursor, Claude Code, or similar) can **set up once and then keep current on every change**.
 
-Version 1.0.0 (2026-10-02). The canonical copy lives at
+Version 1.1.0 (2026-10-18). The canonical copy lives at
 <https://github.com/Equilux-Group-LLC/engineering-playbook/blob/main/playbook/testing-harness-playbook.md>. Every other copy
 (your Mac, your Claude account skill, individual repositories) is a pointer or a synced copy of that file.
-Propose changes there by pull request; don't fork the rules per project. Project-specific rules belong in
-the project's own invariant catalog (Part 5) and AGENTS.md.
+Propose changes there by pull request; don't fork the rules per project. Platform tool choices belong in a
+profile (`profiles/<platform>.md`); project-specific rules belong in the project's own invariant catalog
+(Part 5) and AGENTS.md.
 
 - **Audience 1: the product owner.** You direct the work but do not write code. Read Parts 1 and 2. Every
   rule has a plain-language reason.
 - **Audience 2: the AI agent.** You implement and maintain the harness. Parts 3 to 9 are normative.
   "MUST", "SHOULD", and "MAY" have their usual meaning.
-- **Target platform:** macOS laptop, Cursor as the editor/agent, GitHub for code, pull requests, and CI.
-  Any language, framework, database, or host.
+- **Target platform:** macOS laptop, Cursor or Claude Code as the editor/agent, GitHub for code, pull
+  requests, and CI. Any language, framework, database, or host; each Equilux platform has a profile that
+  names its tools (Part 1).
 
 ---
 
 ## Part 1: How to use this file
 
+### Three tiers
+
+The harness is built in three tiers. Each tier owns different concerns and changes at a different pace.
+
+| Tier | Where | Owns | Changes |
+| --- | --- | --- | --- |
+| **1. Playbook** | `Equilux-Group-LLC/engineering-playbook` | This specification (the rules); **platform profiles** (`profiles/<platform>.md`: the tools, budgets and floors for each platform); **neutral machinery** (`run-contract.sh`, reusable CI workflows, coverage and tests-changed scripts, the `verify` skill template, the bootstrap script) | Rarely, by pull request and release (Part 11) |
+| **2. Platform template** | One repository per profile (a web template; `ios-app-template`) | A working skeleton that implements its profile: the concrete `verify` and `verify:fast`, CI callers, the profile's rubric in `AGENTS.md`, the seed-defects script, `.claude/skills/verify/SKILL.md`, starter invariants | When the profile or the platform's tools change |
+| **3. App repos** | Created from a platform template | The product: its own invariant catalog entries, business rules, journeys and coverage baseline. Records its origin in `.equilux.yml` (Part 11) | Every day |
+
+Rules flow down: an app repo never relaxes its template, and a template never relaxes its profile or this
+playbook. Fixes flow up by pull request to the tier that owns the concern.
+
 ### For the product owner (3 steps)
 
-1. In the project folder on your Mac, run the bootstrap script once (Part 11). It copies this playbook to
-   `docs/testing-harness-playbook.md`, adds the Cursor and Claude rules, the PR template, git hooks and a
-   CI workflow that calls the shared org checks.
+1. **New app:** create the repository from its platform template (Tier 2); the harness is already in place.
+   **Existing repository:** run the bootstrap script once in the project folder (Part 11). It copies this
+   playbook to `docs/testing-harness-playbook.md`, adds the Cursor and Claude rules, the PR template, git
+   hooks and a CI workflow that calls the shared org checks.
 2. In Cursor (or Claude Code), open the agent chat and paste the **Kickoff prompt** below. If you
    installed the Claude skill (Part 11), saying "set up the testing harness" is enough.
 3. Review the pull requests it opens. Merge only when every check is green (Part 6).
@@ -73,9 +89,11 @@ and cheaper nets sit closer to you.
 Three more ideas hold it together:
 
 - **One button.** Every project has one command, `verify`, that runs all the pre-merge nets. If `verify`
-  is green on your laptop, CI should be green too.
-- **Gates.** Code must pass nets at four checkpoints: on your laptop before commit, before push, on the
-  pull request, and during deploy. Each later gate re-checks the earlier ones.
+  is green on your laptop, CI should be green too. A quicker `verify:fast` (under a minute) runs the
+  cheapest nets for the agent's own check before each commit.
+- **Gates.** Code must pass nets at five checkpoints: the agent's self-check before it commits (Gate 0),
+  on your laptop before commit, before push, on the pull request, and during deploy. Each later gate
+  re-checks the earlier ones.
 - **Independent review.** A second AI reviewer, which did not write the code, reviews every pull request
   against the project's written rules.
 
@@ -103,15 +121,19 @@ Each principle has a rule for the agent and a reason for the owner.
 6. **Deterministic or deleted.** Tests MUST NOT depend on the wall clock, random values, test order,
    network access, or shared state. Inject a clock and a seeded random source.
    *Why:* a flaky test teaches everyone to ignore red.
-7. **Fast by default.** The pre-merge suite SHOULD finish in under 5 minutes in CI, and unit tests
-   in under 30 seconds locally.
+7. **Fast by default.** The pre-merge suite SHOULD finish within `verify`'s time budget (5 minutes unless
+   the platform profile sets another), `verify:fast` in under 60 seconds, and unit tests in under 30
+   seconds locally.
    *Why:* slow suites get skipped.
 8. **Synthetic data only.** Fixtures MUST use obviously fake values (`Example Org`, `user-1`,
    `test@example.com`). Never copy production data, real names, or real contact details into tests.
    *Why:* test files end up in many places (logs, CI, AI context). They must be safe to leak.
 9. **Never weaken a test to get green.** The agent MUST NOT delete, skip, loosen, or mark a test as
    expected-to-fail to make a change pass. If a test is wrong, fix it in its own commit and explain why
-   in the pull request.
+   in the pull request. Automated cleanup and simplification passes (an AI `/simplify`, refactoring tools)
+   MUST NOT modify test files, fixtures or snapshots, and MUST NOT change behavior; formatters are exempt.
+   If the suite is red after a cleanup pass, revert the cleanup rather than editing tests to match it.
+   *Why:* a cleanup that needs a test change is a behavior change in disguise.
 10. **Discovery, not lists.** Test runners MUST find tests by file-name pattern. Don't maintain a
     hand-written list of test files.
     *Why:* a new test file that's missing from the list silently never runs.
@@ -121,7 +143,9 @@ Each principle has a rule for the agent and a reason for the owner.
 ## Part 4: Test layers (normative)
 
 Each project MUST implement layers L0 to L4 and L6. L5 applies only when the project has a browser or mobile
-UI with user flows. L7 applies only when there is a production environment.
+UI with user flows. L7 applies only when there is a production environment. The locations below are
+defaults; a platform profile maps each layer to its tools and locations and MAY add sub-layers (for example
+snapshot tests on iOS).
 
 ### L0: Static checks
 
@@ -218,12 +242,22 @@ The agent MUST use this table to decide which tests a change needs.
 
 Every project MUST keep a machine-readable or clearly structured catalog of its "never" rules at
 `test/invariants/CATALOG.yaml`. Each entry has an id, a plain-language rule, the
-paths it applies to, and the test files that enforce it. The agent MUST add or update an entry whenever
-a change adds a new data path.
+paths it applies to, and the test files that enforce it, and MAY have a `why`: one sentence on the harm the
+rule prevents, so a later reader can judge a change to it. The agent MUST add or update an entry whenever
+a change adds a new data path. Platform profiles list default entries every app on that platform inherits.
+
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `id` | Yes | Stable identifier, never reused (`AUTHZ-001`) |
+| `rule` | Yes | The rule in plain language |
+| `why` | No | The harm it prevents |
+| `applies_to` | Yes | Paths in or out that the rule covers |
+| `enforced_by` | Yes | Test files (or CI checks) that fail when the rule breaks |
 
 ```yaml
 - id: AUTHZ-001
   rule: A user can modify only records owned by their own organization.
+  why: One organization editing another's records is a breach we cannot undo.
   applies_to: [all write routes]
   enforced_by: [test/invariants/authorization-matrix.test.*]
 - id: DATA-001
@@ -259,11 +293,21 @@ Standard guardrail test techniques the agent SHOULD use:
 
 ## Part 6: Gates (normative)
 
+### Gate 0: Agent self-check (before every commit, under a minute or two)
+
+Before an agent commits a code change it MUST run the repository's `verify` skill
+(`.claude/skills/verify/SKILL.md`, which platform templates copy from `templates/claude/skills/verify/` in
+this repository): `verify:fast`, then a `/simplify` cleanup pass on the changed source only, then
+`verify:fast` again. Red at the first run stops the commit. Red at the second run means the cleanup is
+reverted (Part 3 principle 9). Where the change touches UI or a route, the skill also exercises the changed
+path once with the profile's agent tooling. Gate 0 is a rule for agents, not a hook; Gates 1 to 3 re-check
+everything it checks.
+
 ### Gate 1: Pre-commit (laptop, seconds)
 
 Formatter (auto-fix staged files), linter on staged files, secret scan on staged changes.
 
-### Gate 2: Pre-push (laptop, under 2 minutes)
+### Gate 2: Pre-push (laptop, within `verify`'s budget)
 
 `verify` (all of L0 to L4, plus L5 if it's fast enough; otherwise L5 runs in CI only).
 
@@ -276,10 +320,18 @@ files. Required checks, all of which MUST pass:
 | --- | --- |
 | `secrets` | Secret scan over the commits the PR adds |
 | `verify` | The same `verify` command as the laptop, with `CI=true` |
-| `coverage` | Line coverage of changed lines ≥ 80%; total coverage must not decrease (ratchet) |
+| `coverage` | Changed-line coverage ≥ the profile's floor (80% by default); total coverage must not decrease (ratchet); per-target floors where the profile sets them |
 | `tests-changed` | Fails if source files changed but no test files changed, unless the PR has the `no-test-needed` label **and** a one-line reason in the PR body |
 | `e2e` | L5 suite (when applicable) |
 | `review` | Independent AI review against the project rules file; verdict must be READY or every finding dismissed with a reason |
+
+### Coverage thresholds
+
+The numbers come from the repository's platform profile (`profiles/<platform>.md`, section 5). A repository
+without a profile uses the defaults: changed lines ≥ 80%, and a total-coverage ratchet against a committed
+`.coverage-baseline`. A profile MAY add per-target floors (for example per package) and MAY raise the
+changed-line floor; it MUST NOT drop the ratchet. App repos MAY raise their floors, never lower them below
+the profile's.
 
 ### Gate 4: Deploy (GitHub Actions)
 
@@ -302,7 +354,8 @@ files. Required checks, all of which MUST pass:
 Every project MUST expose these commands through its native task runner (package scripts, `Makefile`,
 `justfile`, `Taskfile`, `mise` tasks, etc.). Names are fixed so humans, hooks, CI, and agents all speak the
 same language. `.harness/run-contract.sh <command>` (installed by the bootstrap script) finds and runs the
-command through whichever runner the repository uses; the shared CI and git hooks call it.
+command through whichever runner the repository uses; the shared CI, git hooks and the `verify` skill call
+it. The platform profile maps each command to its tools and sets the budgets marked "profile".
 
 | Command | Runs | Must finish |
 | --- | --- | --- |
@@ -316,10 +369,16 @@ command through whichever runner the repository uses; the shared CI and git hook
 | `test:e2e` | L5 | < 3 min |
 | `test` | L1 + L2 + L3 + L4 | |
 | `coverage` | `test` with coverage, writes `coverage/lcov.info` (LCOV or Cobertura format) | |
-| `verify` | `format:check` → `lint` → `typecheck` → `build` → `coverage` (fail-fast) | < 5 min |
+| `verify:fast` | Gate 0 subset: `format:check` → `lint` → `typecheck` → `test:unit` (fail-fast). The profile lists the exact stages; anything that cannot fit in the budget (app builds, simulators, containers) stays out | < 60 s |
+| `verify` | `format:check` → `lint` → `typecheck` → `build` → `coverage` (fail-fast) | < 5 min, or the profile's budget |
 | `smoke:<env>` | L6 against `<env>` | < 2 min |
 
-Illustrative tool choices (pick the idiomatic ones for the stack; these are examples, not requirements):
+`verify:fast` MUST be a strict subset of `verify`: green `verify` implies green `verify:fast`. A profile MAY
+set `verify`'s budget above 5 minutes when the platform needs it (an iOS build and simulator run); it MUST
+NOT raise `verify:fast` above 60 seconds.
+
+Illustrative tool choices for stacks without a profile (Equilux platforms use `profiles/web.md` and
+`profiles/ios.md` instead; these are examples, not requirements):
 
 | Stack | Format / Lint / Types | Unit + Integration runner | Real DB for tests | E2E |
 | --- | --- | --- | --- | --- |
@@ -363,6 +422,12 @@ alwaysApply: true
 Add a short section pointing to the playbook and repeating the three hardest rules: tests with every
 change, never weaken tests, run `verify` before completion. Keep the details in the playbook.
 
+### `.claude/skills/verify/SKILL.md`
+
+The Gate 0 skill. Platform templates copy it verbatim from `templates/claude/skills/verify/SKILL.md` in this
+repository, so every app repo inherits it. Don't edit the copy in an app repo; change the template here and
+let it flow down.
+
 ### `.github/pull_request_template.md`
 
 Include a checklist: risk areas touched (auth, sensitive data, schema, deploy config); tests added per
@@ -386,7 +451,7 @@ Do one phase per pull request. Each phase ends with its acceptance check passing
 | Phase | Work | Acceptance check |
 | --- | --- | --- |
 | 0. Inventory | Detect languages, frameworks, database, hosting, existing tests and CI. Write `docs/testing-inventory.md` listing what exists, what is missing per layer, and the proposed tools. | Owner approves the inventory PR |
-| 1. Command contract | Add all Part 7 commands (stubs allowed for layers not yet built, which print "not configured" and exit 0 only until their phase). Pin tool versions. Add `setup`. | `setup` then `verify` succeed on a clean clone |
+| 1. Command contract | Add all Part 7 commands, including `verify:fast` (stubs allowed for layers not yet built, which print "not configured" and exit 0 only until their phase). Pin tool versions. Add `setup`. | `setup` then `verify:fast` and `verify` succeed on a clean clone, within their budgets |
 | 2. Static checks | Formatter, linter, type checker, secret scan. Fix or explicitly baseline existing violations (baseline file with a count that may only go down). | `verify` fails if a lint error is introduced |
 | 3. Unit tests | Test discovery by pattern. Add a clock/random injection seam. Cover the core business rules. | Coverage report produced |
 | 4. Integration tests | Test database builder that applies all migrations; request helper with `signInAs(role)`; fakes for each external service. One test per route per the matrix. Migration tests. | Every route has at least one integration test |
@@ -395,7 +460,7 @@ Do one phase per pull request. Each phase ends with its acceptance check passing
 | 7. Local hooks | lefthook (or equivalent) for Gates 1 and 2, installed by `setup`. | Committing a file with a planted fake secret is blocked |
 | 8. Deploy checks | L4 tests for deploy scripts; L6 smoke per environment; L7 production pipeline if production exists. | Smoke passes after a development deploy |
 | 9. End-to-end (if UI) | Headless browser suite for the owner-approved critical journeys; mobile viewport if mobile-first. | Suite passes in CI in < 3 min |
-| 10. Rules files | Part 8 files. Link the playbook from the README. | A new agent session, asked to "add a field", adds tests without being told |
+| 10. Rules files | Part 8 files, including the `verify` skill. Link the playbook from the README. | A new agent session, asked to "add a field", adds tests without being told |
 
 ### Questions to ask the owner (only these)
 
@@ -409,6 +474,10 @@ Do one phase per pull request. Each phase ends with its acceptance check passing
 ---
 
 ## Part 10: macOS local setup reference
+
+Platform-neutral steps only. Platform toolchains, simulators and emulators, and self-hosted CI runners are in
+the platform profile's "Local setup" section (for iOS: Xcode, the pinned simulator and the Mac mini runner in
+`profiles/ios.md`).
 
 ```text
 1. Install Homebrew (https://brew.sh) and then: brew install git mise lefthook gitleaks
@@ -431,12 +500,42 @@ One canonical source, everything else points to it or syncs from it.
 
 | Place | What is there | How it stays current |
 | --- | --- | --- |
-| **`Equilux-Group-LLC/engineering-playbook`** (public, canonical) | This playbook; reusable CI workflows; caller and starter templates; the Claude skill; the install, bootstrap and sync scripts; and the source of the files in both `.github` repositories (`dotgithub/`) | Changes land by pull request, from any machine or Claude session; releases are tagged `v1.x.y` and the moving tag `v1` points at the latest compatible release |
+| **`Equilux-Group-LLC/engineering-playbook`** (public, canonical; Tier 1) | This playbook; the platform profiles (`profiles/`); reusable CI workflows; caller and starter templates, including the `verify` skill (`templates/claude/skills/verify/`); the Claude skill; the install, bootstrap and sync scripts; and the source of the files in both `.github` repositories (`dotgithub/`) | Changes land by pull request, from any machine or Claude session; releases are tagged `v1.x.y` and the moving tag `v1` points at the latest compatible release |
+| **Platform templates** (Tier 2: a web template; `Equilux-Group-LLC/ios-app-template`) | A skeleton app that implements one profile: concrete `verify` / `verify:fast`, CI callers, the profile's rubric in `AGENTS.md`, `scripts/seed-defects.sh`, `.claude/skills/verify/SKILL.md`, starter `CATALOG.yaml`, and its own `.equilux.yml` | Pulls in each playbook release that changes its profile or the machinery, by pull request, and bumps `playbook` in `.equilux.yml` |
 | **`Equilux-Group-LLC/.github`** (public) | Only what GitHub requires to live there: the default PR template for every org repository, the "New workflow" templates, and a README pointing here | `bash scripts/sync-dotgithub.sh` from a Mac clone. Claude cloud sessions can't edit repositories whose names start with a dot, so this one step is local |
-| **Other `Equilux-Group-LLC` repositories** | `docs/testing-harness-playbook.md` (synced copy), `.cursor/rules/testing.mdc`, an AGENTS.md testing block, CI callers pinned to `@v1`, `lefthook.yml`, `test/invariants/CATALOG.yaml`. The PR template is inherited from `Equilux-Group-LLC/.github` | Re-run `bootstrap-repo.sh`; managed files refresh, project-owned starters are left alone. CI picks up fixes to `@v1` automatically |
+| **App repos and other `Equilux-Group-LLC` repositories** (Tier 3) | `.equilux.yml` (when created from a template), `docs/testing-harness-playbook.md` (synced copy), `.cursor/rules/testing.mdc`, an AGENTS.md testing block, CI callers pinned to `@v1`, `lefthook.yml`, `test/invariants/CATALOG.yaml`. The PR template is inherited from `Equilux-Group-LLC/.github` | Re-run `bootstrap-repo.sh`; managed files refresh, project-owned starters are left alone. CI picks up fixes to `@v1` automatically |
 | **`caobhin/.github`** (public) | Default PR template for personal repositories and a README pointing here. Personal repositories call the same `Equilux-Group-LLC/engineering-playbook` reusable workflows | Same `sync-dotgithub.sh` run |
 | **This Mac** | A clone at `~/Developer/engineering-playbook`; `~/.claude/skills/testing-harness` symlinked into it; a marked block in `~/.claude/CLAUDE.md`; a Cursor user rule | `git -C ~/Developer/engineering-playbook pull` (or re-run `install-local.sh`) |
 | **Claude account (claude.ai, Claude Code on the web)** | The `testing-harness` skill uploaded as a zip | Re-upload `dist/testing-harness-skill.zip` (built by `scripts/build-skill-zip.sh`) after a playbook release |
+
+### Where each concern lives
+
+| Concern | Lives in | Tier |
+| --- | --- | --- |
+| Rules: layers, change-type matrix, gates, command names, principles | This playbook | 1 |
+| Tools per layer and command, `verify` budget, `verify:fast` stages, coverage floors, rubric additions, seed defects, agent tooling, platform setup | `profiles/<platform>.md` | 1 |
+| Shared scripts and CI (`run-contract.sh`, reusable workflows, coverage and tests-changed checks), the `verify` skill template | `scripts/`, `.github/workflows/`, `templates/` here | 1 |
+| Concrete `verify` / `verify:fast`, CI callers and runners, rubric text in `AGENTS.md`, seed-defects script, starter invariants, stack ADRs | The platform template | 2 |
+| Product "never" rules, journeys, business rules, coverage baseline, raised floors | The app repo (`CATALOG.yaml`, `AGENTS.md`, `.coverage-baseline`) | 3 |
+
+### Provenance: `.equilux.yml`
+
+Every platform template and every app repo created from one has `.equilux.yml` at its root, so agents and
+scripts know which profile applies and what to diff against when updating. The template writes it when a repo
+is created from it (its bootstrap script fills in `template_ref`); updates change it in the same pull request
+as the files they bring in.
+
+```yaml
+# .equilux.yml: where this repository's harness comes from. Edit only when adopting an update.
+playbook: v1.1.0                                   # playbook release the harness implements
+profile: ios                                       # profiles/<profile>.md in the playbook repository
+template: Equilux-Group-LLC/ios-app-template       # omitted in a platform template itself
+template_ref: 0123456789abcdef0123456789abcdef01234567   # template commit this repo was created or last updated from
+```
+
+An agent working in a repository reads `.equilux.yml` first: the profile it names decides the tools, budgets
+and floors; without the file, the repository uses this playbook's defaults. To update an app repo, diff the
+template from `template_ref` to its latest release and apply that diff by pull request.
 
 ### Shared reusable workflows
 
@@ -464,7 +563,9 @@ ratchet compares against a committed `.coverage-baseline` file (raise it when co
 ### Changing the playbook
 
 Edit `playbook/testing-harness-playbook.md` in `Equilux-Group-LLC/engineering-playbook` by pull request (also refresh the
-skill's copy in `skills/testing-harness/references/`; the self-test fails if they differ). If the PR template or
+skill's copy in `skills/testing-harness/references/`; the self-test fails if they differ). Profile changes land
+the same way; after release, each affected platform template adopts them by pull request, then app repos
+adopt the template change. If the PR template or
 workflow templates changed, run `bash scripts/sync-dotgithub.sh` on a Mac after merging. Release by running
 the **Release** workflow with a version number: backward-compatible changes bump the minor version and move
 the `v1` tag; a change that breaks callers (renamed inputs, new required checks) is a new major version (`v2`)
@@ -478,12 +579,16 @@ that repositories adopt deliberately.
 - **CI (continuous integration):** GitHub's servers running the checks on every pull request.
 - **Coverage:** the percentage of code lines that ran during tests. Useful as a floor, not a goal.
 - **Fake / mock:** a stand-in for an outside service that records what was sent to it.
+- **Platform profile:** the file that says which tools, time budgets and coverage floors implement this
+  playbook on one platform (`profiles/web.md`, `profiles/ios.md`).
+- **Platform template:** a starter repository that implements one profile; new apps are created from it.
 - **Fixture / builder:** code that creates standard fake test data.
 - **Flaky test:** a test that sometimes passes and sometimes fails with no code change.
 - **Invariant:** a rule that must always hold, no matter what change is made.
 - **Migration:** a script that changes the database structure.
 - **Ratchet:** a threshold that can only move in one direction (coverage may go up, never down).
 - **Regression test:** a test that proves a fixed bug stays fixed.
+- **Seed defects:** known violations planted on a throwaway branch to prove the AI reviewer still catches them.
 - **Ruleset / branch protection:** GitHub settings that block merging until required checks pass.
 - **Smoke test:** a quick check that a freshly deployed site is alive and wired correctly.
 

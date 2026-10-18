@@ -2,24 +2,31 @@
 # Every entry must name at least one passing test in enforced_by. Agents update this file whenever a change
 # adds a new input, output, integration, role or credential.
 #
+# `why` is optional: one sentence on the harm the rule prevents.
+#
 # Replace the examples below with the owner's answers to Part 9 question 2.
 - id: AUTHZ-001
   rule: A user can modify only records owned by their own organization.
+  why: One organization editing another's records is a breach we cannot undo.
   applies_to: [all write routes]
   enforced_by: []
 - id: DATA-001
   rule: Write APIs reject any field not on the allow-list.
+  why: Silently accepted fields are how forbidden data gets stored.
   applies_to: [all routes that accept a body]
   enforced_by: []
 - id: DATA-002
   rule: Prohibited sensitive fields never appear in any output.
+  why: Leaked sensitive data cannot be recalled.
   applies_to: [API responses, exports, feeds, emails, SMS, logs, queue messages, backups]
   enforced_by: []
 - id: SEC-001
   rule: Tokens, passwords, and credential URLs never appear in logs, errors, or responses.
+  why: A leaked credential gives an attacker the same access as its owner.
   applies_to: [all routes, all scripts]
   enforced_by: []
 - id: SEC-002
   rule: Revoked credentials stop working immediately.
+  why: A credential that outlives its revocation keeps a removed person inside.
   applies_to: [sessions, invite links, feed tokens, API keys]
   enforced_by: []
