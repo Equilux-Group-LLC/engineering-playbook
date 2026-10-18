@@ -233,6 +233,28 @@ unzip -l "$z" | grep -q 'testing-harness/SKILL.md' && [[ "$(unzip -p "$z" testin
   && ok "build-skill-zip: contains SKILL.md and real playbook text" || bad "build-skill-zip"
 expect_status "build-skill-zip: unknown skill fails" 1 bash "$root/scripts/build-skill-zip.sh" "$work/x.zip" no-such-skill
 
+# ---- stamp-version.sh ----
+# Runs against a copy of the layout, so the committed "unreleased" line is never touched.
+st="$work/stamp"; mkdir -p "$st/scripts" "$st/playbook" "$st/skills/testing-harness/references"
+cp "$root/scripts/stamp-version.sh" "$st/scripts/"
+cp "$root/playbook/testing-harness-playbook.md" "$st/playbook/"
+cp "$root/skills/testing-harness/references/testing-harness-playbook.md" "$st/skills/testing-harness/references/"
+grep -q '^Version unreleased ' "$root/playbook/testing-harness-playbook.md" \
+  && ok "stamp-version: committed playbook says unreleased" || bad "stamp-version: committed playbook says unreleased" "the release workflow stamps the version; don't hard-code it"
+expect_status "stamp-version: stamps both copies" 0 bash "$st/scripts/stamp-version.sh" 9.8.7 2030-01-02
+grep -qx 'Version 9.8.7 (2030-01-02). The canonical copy lives at' "$st/playbook/testing-harness-playbook.md" \
+  && cmp -s "$st/playbook/testing-harness-playbook.md" "$st/skills/testing-harness/references/testing-harness-playbook.md" \
+  && ok "stamp-version: copies carry the version and stay identical" || bad "stamp-version: copies carry the version and stay identical"
+expect_status "stamp-version: restamp replaces the old version" 0 bash "$st/scripts/stamp-version.sh" 9.8.8 2030-01-03
+[[ "$(grep -c '^Version ' "$st/playbook/testing-harness-playbook.md")" == 1 ]] && grep -q '^Version 9.8.8 (2030-01-03)\.' "$st/playbook/testing-harness-playbook.md" \
+  && ok "stamp-version: restamp leaves one version line" || bad "stamp-version: restamp leaves one version line"
+expect_status "stamp-version: bad version fails" 1 bash "$st/scripts/stamp-version.sh" v1.2
+expect_status "stamp-version: bad date fails" 1 bash "$st/scripts/stamp-version.sh" 1.2.3 tomorrow
+sed -i.bak '/^Version /d' "$st/skills/testing-harness/references/testing-harness-playbook.md"
+expect_status "stamp-version: missing version line fails" 1 bash "$st/scripts/stamp-version.sh" 1.2.3 2030-01-04
+grep -q '^Version 9.8.8 (2030-01-03)\.' "$st/playbook/testing-harness-playbook.md" \
+  && ok "stamp-version: failure leaves the canonical copy untouched" || bad "stamp-version: failure leaves the canonical copy untouched" "check both copies before writing either"
+
 # ---- consistency ----
 # The settings template stays valid JSON, allows the contract commands and points both hooks at managed files.
 settings_ok='import json, sys

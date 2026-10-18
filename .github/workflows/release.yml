@@ -1,7 +1,8 @@
 name: Release
 
-# Run from Actions -> Release -> Run workflow on main. Runs the self-tests, tags vX.Y.Z, publishes a GitHub
-# release with the Claude skill zips attached, and moves the major tag (v1) so callers pinned to @v1 pick it up.
+# Run from Actions -> Release -> Run workflow on main. Runs the self-tests, stamps the playbook version into the
+# skill zip, tags vX.Y.Z, publishes a GitHub release with the Claude skill zips attached, and moves the major tag
+# (v1) so callers pinned to @v1 pick it up. The stamp lives only in the zip; the committed copies say "unreleased".
 
 on:
   workflow_dispatch:
@@ -47,9 +48,23 @@ jobs:
           git config --global user.name CI
           bash test/run.sh
 
+      - name: Stamp playbook version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/stamp-version.sh "$VERSION"
+
       - name: Build skill zip
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           bash scripts/build-skill-zip.sh dist/testing-harness-skill.zip testing-harness
+          # A zip without references/ installs a skill that points at a playbook it doesn't have.
+          if ! unzip -l dist/testing-harness-skill.zip | grep -q 'testing-harness/references/testing-harness-playbook.md'; then
+            echo "::error::Skill zip is missing testing-harness/references/testing-harness-playbook.md."; exit 1
+          fi
+          if ! unzip -p dist/testing-harness-skill.zip testing-harness/references/testing-harness-playbook.md | grep -q "^Version $VERSION ("; then
+            echo "::error::Zipped playbook is not stamped with version $VERSION."; exit 1
+          fi
 
       - name: Tag and publish release
         env:
