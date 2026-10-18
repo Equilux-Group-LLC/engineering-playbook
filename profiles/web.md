@@ -80,34 +80,15 @@ plus:
 
 ## 7. Rubric additions
 
-**BLOCKER**
-
-- A route or server action without an authorization check, or one that reads or writes another tenant's rows.
-- SQL built by string concatenation or template literals with user input.
-- User input rendered as HTML (`dangerouslySetInnerHTML`, `v-html`, `innerHTML`) without sanitizing.
-- A secret in client-bundled code or a `NEXT_PUBLIC_` / `VITE_` variable.
-- `console.log` of a user identifier, token or request body.
-- A new `test.skip`, `it.only`, `describe.skip` or `.todo` on an existing test.
-
-**SHOULD-FIX**
-
-- Icon-only button without an accessible name; selectors in E2E tests by CSS class.
-- `any` without a reason; floating promises.
-- Hard-coded colors or fonts where the design system has tokens.
+[`web/review-rubric.md`](web/review-rubric.md) holds the BLOCKER and SHOULD-FIX rules the
+AI reviewer applies on top of the playbook. `ai-review.yml` appends it to the review prompt when the caller
+passes `profile: web`. The future web template copies them into its `AGENTS.md`.
 
 ## 8. Seed defects
 
-`scripts/seed-defects.sh` in the platform template plants these on a throwaway branch; Claude Review MUST
-flag each as BLOCKER:
-
-1. A route handler with no auth check.
-2. A query built with a template literal from `req.query`.
-3. A hard-coded API key in a client component.
-4. `console.log(user.email)`.
-5. `dangerouslySetInnerHTML` with request data.
-6. An existing test changed to `test.skip`.
-7. A write route that accepts an unknown body field.
-8. A `fetch` to a third-party host in a unit test.
+[`web/seeded-defect-test.md`](web/seeded-defect-test.md) lists the seeds, the procedure and the
+recorded results. It is the review layer's acceptance check (playbook Part 6 and Part 9, phase 6): the
+reviewer MUST flag each seed as BLOCKER.
 
 ## 9. Agent tooling
 
