@@ -9,9 +9,10 @@
 #      or fast-forwards it if it already exists.
 #   2. Symlinks each Claude skill (testing-harness) from ~/.claude/skills into the clone, and removes the
 #      equilux-design-system link older installs made (that skill no longer ships from this repository).
-#   3. Adds marked blocks to ~/.claude/CLAUDE.md: one pointing every Claude Code session at the playbook, one with
+#   3. Symlinks each Claude subagent (test-auditor) from ~/.claude/agents into the clone.
+#   4. Adds marked blocks to ~/.claude/CLAUDE.md: one pointing every Claude Code session at the playbook, one with
 #      the issue auto-close rule for commits and pull requests.
-#   4. Copies the Cursor user rule to the clipboard for you to paste into Cursor Settings -> Rules.
+#   5. Copies the Cursor user rule to the clipboard for you to paste into Cursor Settings -> Rules.
 # Updates later:  git -C ~/Developer/engineering-playbook pull
 set -euo pipefail
 
@@ -19,6 +20,7 @@ REPO_URL="${HARNESS_REPO_URL:-https://github.com/Equilux-Group-LLC/engineering-p
 HARNESS_HOME="${HARNESS_HOME:-$HOME/Developer/engineering-playbook}"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 SKILLS=(testing-harness)
+AGENTS=(test-auditor)
 # Skills this repository used to ship. Older installs left a symlink for each into the clone.
 RETIRED_SKILLS=(equilux-design-system)
 stamp="$(date +%Y%m%d%H%M%S)"
@@ -42,6 +44,10 @@ remove_retired_links() {
 if [[ "${1:-}" == "--uninstall" ]]; then
   for skill in "${SKILLS[@]}"; do
     link="$CLAUDE_DIR/skills/$skill"
+    if [[ -L "$link" ]]; then rm "$link"; say "Removed $link"; fi
+  done
+  for agent in "${AGENTS[@]}"; do
+    link="$CLAUDE_DIR/agents/$agent.md"
     if [[ -L "$link" ]]; then rm "$link"; say "Removed $link"; fi
   done
   remove_retired_links
@@ -85,13 +91,25 @@ for skill in "${SKILLS[@]}"; do
   say "Linked Claude Code skill: $link"
 done
 
-# 3. Global Claude Code instructions
+# 3. Claude Code subagents
+mkdir -p "$CLAUDE_DIR/agents"
+for agent in "${AGENTS[@]}"; do
+  link="$CLAUDE_DIR/agents/$agent.md"
+  if [[ -e "$link" && ! -L "$link" ]]; then
+    mv "$link" "$link.bak.$stamp"
+    say "Backed up existing $link to $link.bak.$stamp"
+  fi
+  ln -sfn "$HARNESS_HOME/claude/agents/$agent.md" "$link"
+  say "Linked Claude Code subagent: $link"
+done
+
+# 4. Global Claude Code instructions
 if [[ -f "$CLAUDE_DIR/CLAUDE.md" ]]; then cp "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md.bak.$stamp"; fi
 upsert_block "$CLAUDE_DIR/CLAUDE.md" "$HARNESS_HOME/claude/CLAUDE.user.md"
 upsert_block "$CLAUDE_DIR/CLAUDE.md" "$HARNESS_HOME/claude/CLAUDE.issues.md" equilux-issue-linking
 say "Updated $CLAUDE_DIR/CLAUDE.md (testing and issue-linking blocks)"
 
-# 4. Cursor user rule (Cursor keeps user rules in its settings, not in a file)
+# 5. Cursor user rule (Cursor keeps user rules in its settings, not in a file)
 if command -v pbcopy >/dev/null; then
   pbcopy < "$HARNESS_HOME/claude/cursor-user-rule.md"
   say "Copied the Cursor user rule to your clipboard. Paste it in Cursor -> Settings -> Rules -> User Rules."

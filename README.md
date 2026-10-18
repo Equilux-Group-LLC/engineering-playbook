@@ -17,12 +17,12 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | Path | What it is |
 | --- | --- |
 | [`playbook/testing-harness-playbook.md`](playbook/testing-harness-playbook.md) | **The playbook.** Canonical, technology-agnostic testing architecture and agent instructions |
-| [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
+| [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review`, `conformance` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
 | [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Review" / "Equilux PR Tests Changed" / "Equilux PR Issue Link" workflow templates |
 | [`templates/`](templates) | Starter files the bootstrap script copies into a project |
 | [`skills/testing-harness/`](skills/testing-harness) | Claude skill (Claude Code on your Mac and your claude.ai account) |
-| [`claude/`](claude) | Global Claude Code blocks (testing, issue auto-close) and Cursor user rule |
-| [`scripts/`](scripts) | `install-local.sh` (Mac), `bootstrap-repo.sh` (per project), `sync-dotgithub.sh`, CI helpers, `build-skill-zip.sh` |
+| [`claude/`](claude) | Global Claude Code blocks (testing, issue auto-close), the read-only `test-auditor` subagent, and Cursor user rule |
+| [`scripts/`](scripts) | `install-local.sh` (Mac), `bootstrap-repo.sh` (per project), `sync-dotgithub.sh`, `guard-test-weakening.sh` (Claude Code hook), `check-conformance.sh`, CI helpers, `build-skill-zip.sh` |
 | [`AGENTS.md`](AGENTS.md) | Rules for agents working in this repository, including issue auto-close keywords |
 | [`test/`](test) | Self-tests for every script (`bash test/run.sh`) |
 
@@ -34,7 +34,7 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Equilux-Group-LLC/engineering-playbook/main/scripts/install-local.sh)"
 ```
 
-This clones this repository to `~/Developer/engineering-playbook`, links the skill into `~/.claude/skills`, adds
+This clones this repository to `~/Developer/engineering-playbook`, links the skill into `~/.claude/skills` and the `test-auditor` subagent into `~/.claude/agents`, adds
 marked blocks to `~/.claude/CLAUDE.md` (testing, and the issue auto-close rule for commits and PRs), and copies a Cursor user rule to your clipboard to paste into
 **Cursor → Settings → Rules → User Rules**. Update later with `git -C ~/Developer/engineering-playbook pull`.
 Undo with `bash ~/Developer/engineering-playbook/scripts/install-local.sh --uninstall`.
