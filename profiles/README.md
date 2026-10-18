@@ -16,8 +16,8 @@ the playbook delegates to them, and add rules.
 
 | Profile | Platform template | Status |
 | --- | --- | --- |
-| [`web.md`](web.md) | Not yet created | Draft, seeded from the playbook's defaults |
-| [`ios.md`](ios.md) | `Equilux-Group-LLC/ios-app-template` | Draft, seeded from the template's harness and its locked decisions |
+| [`web.md`](web.md) | Not yet created | Draft, seeded from the playbook's defaults. Review rubric scored 6/6 on its seeded-defect test (2026-09-22) |
+| [`ios.md`](ios.md) | `Equilux-Group-LLC/ios-app-template` | Draft, seeded from the template's harness and its locked decisions. Seeded-defect test planned, not yet run |
 
 ## What a profile MUST define
 
@@ -31,8 +31,8 @@ Every profile has these sections, in this order, so profiles can be compared sid
 | 4 | **Gates** | Where Gates 0 to 4 (Part 6) run on this platform: hooks, CI runners, deploy pipeline, and anything that cannot run on GitHub-hosted runners. |
 | 5 | **Coverage floors** | Changed-line floor, total-coverage ratchet, and any per-target floors (Part 6). The coverage report format and where it is written. |
 | 6 | **Invariant defaults** | Starter `CATALOG.yaml` entries (Part 5) every app on this platform inherits, with a `why` for each. |
-| 7 | **Rubric additions** | BLOCKER and SHOULD-FIX rules the AI reviewer applies on top of the playbook. The platform template copies them into its `AGENTS.md`. |
-| 8 | **Seed defects** | A list of known violations a seeding script plants on a throwaway branch. The reviewer MUST flag each one as BLOCKER. This is the AI review's own regression test; re-run it when the rubric, the review prompt or the review model changes. |
+| 7 | **Rubric additions** | BLOCKER and SHOULD-FIX rules the AI reviewer applies on top of the playbook, kept in `<platform>/review-rubric.md` and linked from here. `ai-review.yml` appends that file to the review prompt when the caller passes `profile: <platform>`; the platform template also copies the rules into its `AGENTS.md`. |
+| 8 | **Seed defects** | `<platform>/seeded-defect-test.md`: known violations planted on a throwaway branch, the procedure, and the recorded results (`<platform>/results/`). The reviewer MUST flag each one as BLOCKER. This is the review layer's acceptance check and its regression test; re-run it when the rubric, the review prompt or the review model changes. |
 | 9 | **Agent tooling** | How an agent runs the app and exercises a changed path (verify skill step 2), and any tool that sends data off the machine. |
 | 10 | **Local setup** | Platform toolchain, simulators/emulators, and runners. Platform-specific setup lives here, not in playbook Part 10. |
 | 11 | **Superseded guidance** | Older platform documents or defaults this profile overrides, so agents do not follow them. |

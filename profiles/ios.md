@@ -108,43 +108,15 @@ template's older `owner_test` key is `enforced_by` here):
 
 ## 7. Rubric additions
 
-The template's `AGENTS.md` carries these; the AI reviewer reads them first.
-
-**BLOCKER**
-
-- Anything on the ban list: `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`,
-  `@EnvironmentObject`, `NavigationView`, `NavigationLink(isActive:)`, `.foregroundColor`, `.cornerRadius`,
-  completion-handler networking, `DispatchQueue.main.async` in SwiftUI, `@unchecked Sendable`, `print`.
-- A secret, token or credential in the repo, bundle, xcconfig, `UserDefaults`, logs or a fixture.
-- Real PII or PHI anywhere: code, fixtures, seeds, docs, commits.
-- A Worker route not behind `requireSession`, a query not scoped to `c.var.userId`, or a `user_id` table
-  missing from `userOwnedTables`.
-- An edit to a `*.pbxproj` (change `project.yml` and run `scripts/generate`).
-- A new dependency (Swift package, npm package, GitHub Action, MCP server) that was not approved.
-- Health data stored in iCloud/CloudKit without an ADR citing App Review Guideline 5.1.3(ii).
-- A missing usage string for a permission, or a permission requested at launch instead of at the moment of use.
-- `NSAllowsArbitraryLoads`, or a force-unwrapped decode of network data.
-- A re-recorded snapshot without a PR note.
-
-**SHOULD-FIX**
-
-- Missing `#Preview`; missing `accessibilityIdentifier` on an interactive element.
-- Hard-coded colors or fonts in views (use theme roles); copy built by concatenating sentences.
-- A model doing work a service should do; a new service with no Fake; a model file over 300 lines.
-- A non-obvious decision without a doc or ADR.
+[`ios/review-rubric.md`](ios/review-rubric.md) holds the BLOCKER and SHOULD-FIX rules the
+AI reviewer applies on top of the playbook. `ai-review.yml` appends it to the review prompt when the caller
+passes `profile: ios`. `ios-app-template`'s `AGENTS.md` carries the same rules; the reviewer reads both.
 
 ## 8. Seed defects
 
-`scripts/seed-defects.sh` plants these on a throwaway branch; Claude Review MUST flag each as BLOCKER:
-
-1. A session token written to `UserDefaults`.
-2. A new `ObservableObject` model.
-3. `NavigationView` in a new screen.
-4. `print` of a user's email.
-5. A force-unwrapped decode of a network response.
-6. A Worker route added outside `requireSession`.
-7. An icon-only button without an accessibility label.
-8. A hard-coded color in a view.
+[`ios/seeded-defect-test.md`](ios/seeded-defect-test.md) lists the seeds, the procedure and the
+recorded results. It is the review layer's acceptance check (playbook Part 6 and Part 9, phase 6): the
+reviewer MUST flag each seed as BLOCKER.
 
 ## 9. Agent tooling
 
