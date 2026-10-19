@@ -3,8 +3,9 @@
 Status: draft ([Profile status](README.md#profile-status)). Checked against `Equilux-Group-LLC/ios-app-template`
 at `59b2a9d` on 2026-10-18. The template does not yet do these things this profile describes
 ([ADR 0001](../docs/decisions/0001-profile-status-and-ios-initial-state.md)): every Part 7 command as a mise
-task, `verify:fast` without `xcodebuild`, L6 smoke and L7 Worker deploy, the `Edge/` coverage floor, and a
-Cobertura report for the shared coverage gates. The seeded-defect test has not been run.
+task, `verify:fast` without `xcodebuild`, L6 smoke and L7 Worker deploy, and a Cobertura report for the
+shared coverage gates. The `Edge/` floor (80%, section 5) is recorded but not gated, because measuring it needs a
+dependency not yet approved (template ADR 0022). The seeded-defect test has not been run.
 
 Seeded from the template's iOS playbook, which the template has since retired in favor of this profile
 (template commit `eb94db2`). The template's ADRs in `docs/decisions/` win over this profile's tool choices; the
@@ -97,10 +98,18 @@ the owner alone pushes to, never to a public repository or one that accepts fork
 | Changed lines | ≥ 80% |
 | Each local package (`AppShell`, `DesignSystem`, `Identity`) | ≥ 85% line coverage |
 | App target | ≥ 60% line coverage |
-| `Edge/` | ≥ 85% line coverage (Vitest V8) |
+| `Edge/` | ≥ 80% line coverage (Vitest with the Istanbul provider). Not gated yet: see below |
 | Total | Ratchet against `.coverage-baseline`; never lower it |
 
 The gate runs inside `scripts/verify` from `build/Verify.xcresult` (`xcrun xccov view --report --json`).
+
+**`Edge/` exception (template ADR 0022).** `Edge/` gets 80%, not 85%, and the floor is recorded but not
+enforced. Cloudflare's Workers Vitest pool can't produce V8 coverage, so measuring Edge needs
+`@vitest/coverage-istanbul`, a new devDependency the owner hasn't approved. Measured 2026-10-18: 81.67% (214 of
+262 lines). Nearly all the uncovered lines are in `src/integration.ts`, the test-only Worker entry the Swift
+integration tests use; every other file is at 95.5%. Ending the exception means approving the dependency,
+covering `src/integration.ts` from Vitest, and gating Edge at 85%. Until then, this row is a known gap that
+keeps the profile Draft.
 
 ## 6. Invariant defaults
 

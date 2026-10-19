@@ -44,6 +44,14 @@ and PR Conformance fail until it ships.
    workflow, as profile section 2 describes, so every app inherits them.
 4. **The `Edge/` floor is enforced.** The template's coverage gate reads Edge's Vitest V8 report and requires
    85%. Measure first so the gate does not start red.
+
+   **Amended 2026-10-18: 80%, recorded but not gated (template ADR 0022).** Measuring showed two things.
+   Cloudflare's Workers Vitest pool can't produce V8 coverage, so gating Edge needs `@vitest/coverage-istanbul`,
+   a new devDependency. And Edge was at 81.67% (214 of 262 lines), with nearly all the gap in
+   `src/integration.ts`, the test-only Worker entry. The owner chose an 80% floor exception over adding the
+   dependency. The profile now says 80% with the Istanbul provider and names the floor as a gap in its status
+   line. Ending the exception means approving the dependency, covering `src/integration.ts` from Vitest, and
+   gating Edge at 85%. That is the condition for this item to stop holding the profile in Draft.
 5. **A profile has two states, Draft and Active,** defined in `profiles/README.md` ("Profile status") for
    every profile. A profile becomes Active when all of these hold:
    - every concrete claim (paths, commands, workflows, floors) matches its platform template at a named commit;
@@ -85,9 +93,10 @@ status line names the gap and links here.
 
 | Option | Assessment |
 | --- | --- |
-| Enforce in the template (chosen) | Makes the profile true; the current coverage needs measuring first |
+| Enforce in the template (first choice) | Makes the profile true; the current coverage needs measuring first |
 | Drop the floor | Leaves Edge with only the shared changed-line and ratchet gates, which are also off (no Cobertura report yet) |
 | Keep and mark pending | Leaves an unenforced number in the profile indefinitely |
+| 80% exception, recorded not gated (chosen after measuring) | No new dependency. The profile tells the truth and names the gap, which keeps it Draft until the exception ends |
 
 ### Draft exit
 
@@ -125,7 +134,10 @@ This repository, later:
 5. [ ] Remove the `xcodebuild` stage from `scripts/verify-fast`.
 6. [ ] Add every Part 7 command as a mise task; check that lefthook's pre-commit now runs format and lint.
 7. [ ] Add `scripts/smoke-development.sh` and a manual Worker deploy workflow.
-8. [ ] Measure `Edge/` coverage, then add it to the coverage gate at 85%.
+8. [x] Measure `Edge/` coverage: 81.67%. The floor is set at 80% by exception and not gated (decision 4,
+   amended; template ADR 0022).
+   - [ ] To end the exception: approve `@vitest/coverage-istanbul`, cover `src/integration.ts` from Vitest,
+     and gate Edge at 85%.
 9. [ ] Write a Cobertura report from `scripts/verify` and pass it to PR Checks.
 10. [ ] Add `CLAUDE_CODE_OAUTH_TOKEN` and install the Claude GitHub App; delete `pr-verify.yml` once PR Checks
     is green on the Mac mini.
