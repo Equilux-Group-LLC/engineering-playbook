@@ -16,8 +16,8 @@ the playbook delegates to them, and add rules.
 
 | Profile | Platform template | Status |
 | --- | --- | --- |
-| [`web.md`](web.md) | Not yet created | Draft, seeded from the playbook's defaults. Review rubric scored 6/6 on its seeded-defect test (2026-09-22) |
-| [`ios.md`](ios.md) | `Equilux-Group-LLC/ios-app-template` | Draft, seeded from the template's harness and its locked decisions. Seeded-defect test planned, not yet run |
+| [`web.md`](web.md) | Not yet created | Draft, seeded from the playbook's defaults. Review rubric scored 6/6 on its seeded-defect test (2026-09-22). Cannot become Active until a web template exists |
+| [`ios.md`](ios.md) | `Equilux-Group-LLC/ios-app-template` | Draft. Checked against the template at `59b2a9d` (2026-10-18); template work and the seeded-defect test outstanding ([ADR 0001](../docs/decisions/0001-profile-status-and-ios-initial-state.md)) |
 
 ## What a profile MUST define
 
@@ -36,6 +36,23 @@ Every profile has these sections, in this order, so profiles can be compared sid
 | 9 | **Agent tooling** | How an agent runs the app and exercises a changed path (verify skill step 2), and any tool that sends data off the machine. |
 | 10 | **Local setup** | Platform toolchain, simulators/emulators, and runners. Platform-specific setup lives here, not in playbook Part 10. |
 | 11 | **Superseded guidance** | Older platform documents or defaults this profile overrides, so agents do not follow them. |
+
+## Profile status
+
+A profile is **Draft** or **Active**, stated on its first line after the title and in the table above.
+
+A profile becomes **Active** when all of these hold, and the change that says so names the template commit:
+
+1. Every concrete claim (paths, commands, workflows, floors, budgets) matches its platform template at that
+   commit. A profile with no template stays Draft.
+2. The template's `verify` passes on its CI runner at that commit.
+3. The seeded-defect test passes (every seed reported at BLOCKER) and the result is recorded in
+   `<platform>/results/`.
+4. The change ships in a tagged playbook release.
+
+While Draft, a profile describes the target and its status line names what the template does not yet do. An
+Active profile found out of line with its template goes back to Draft in the same change that finds the gap.
+Why: [ADR 0001](../docs/decisions/0001-profile-status-and-ios-initial-state.md).
 
 ## Rules for profiles
 
