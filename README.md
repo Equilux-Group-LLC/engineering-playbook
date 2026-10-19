@@ -18,6 +18,7 @@ The two `.github` repositories ([org](https://github.com/Equilux-Group-LLC/.gith
 | --- | --- |
 | [`playbook/testing-harness-playbook.md`](playbook/testing-harness-playbook.md) | **The playbook.** Canonical, technology-agnostic testing architecture and agent instructions |
 | [`profiles/`](profiles) | Platform profiles (`web`, `ios`): the tools, time budgets, coverage floors, rubric additions and seed defects that implement the playbook on each platform |
+| [`docs/decisions/`](docs/decisions) | Decision records for this repository (for example what moves a profile from Draft to Active) |
 | [`.github/workflows/`](.github/workflows) | Reusable workflows: `secret-scan`, `verify`, `tests-changed`, `issue-link`, `ai-review`, `conformance` (plus this repo's own `self-test`, `pr-issue-link` and `release`) |
 | [`dotgithub/`](dotgithub) | Source of both `.github` repositories: default PR template, README, and the "Equilux PR Checks" / "Equilux PR Review" / "Equilux PR Tests Changed" / "Equilux PR Issue Link" workflow templates |
 | [`templates/`](templates) | Starter files the bootstrap script copies into a project, and the `verify` skill platform templates copy (`templates/claude/skills/verify/`) |
