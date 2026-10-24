@@ -6,7 +6,8 @@ name: AI review (reusable)
 # Caller requirements:
 #   - The Claude GitHub App is installed on the calling repository.
 #   - A CLAUDE_CODE_OAUTH_TOKEN secret (from `claude setup-token`) is passed in `secrets:`.
-#   - The calling job grants: contents: read, pull-requests: write, id-token: write.
+#   - The calling job grants: contents: read, pull-requests: write, id-token: write, and checks, statuses and
+#     actions read (the reviewer runs `gh pr checks`). A called workflow gets only what both files grant.
 #   - Skip drafts, Dependabot and fork PRs in the caller (secrets are not available to them).
 #   - claude-code-action runs only when the calling workflow file is byte-identical on the default branch, so
 #     the PR that adds or edits the caller is never reviewed by it (the last step says so instead of passing).
@@ -37,6 +38,9 @@ on:
 
 permissions:
   contents: read
+  checks: read
+  statuses: read
+  actions: read
 
 jobs:
   review:
@@ -47,6 +51,9 @@ jobs:
       contents: read
       pull-requests: write
       id-token: write
+      checks: read
+      statuses: read
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

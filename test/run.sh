@@ -348,6 +348,19 @@ grep -q 'identical copy of that file is on the default branch' "$air" \
   && ok "ai-review: no-review error explains the default-branch rule" || bad "ai-review: no-review error explains the default-branch rule"
 grep -q 'scripts/review-rubric.sh .harness-toolkit "$PROFILE"' "$air" && grep -q 'steps.rubric.outputs.text' "$air" \
   && ok "ai-review: profile rubric is loaded and appended" || bad "ai-review: profile rubric is loaded and appended"
+# `gh pr checks` needs checks, statuses and actions read. A called workflow gets only what both it and its caller
+# grant, so ai-review.yml and the caller template must both grant them, and nothing beyond these writes.
+review_perms='import sys, yaml
+wf = yaml.safe_load(open(sys.argv[1]))
+ci = {"checks": "read", "statuses": "read", "actions": "read"}
+job = {"contents": "read", "pull-requests": "write", "id-token": "write", **ci}
+assert wf["jobs"]["review"]["permissions"] == job, wf["jobs"]["review"]["permissions"]
+if sys.argv[2] == "callee":
+    assert wf["permissions"] == {"contents": "read", **ci}, wf["permissions"]'
+python3 -c "$review_perms" "$air" callee 2>"$work/perms.log" \
+  && ok "ai-review: review job can read CI state, no extra writes" || bad "ai-review: review job can read CI state, no extra writes" "$(tail -1 "$work/perms.log")"
+python3 -c "$review_perms" "$root/templates/workflows/pr-review.yml" caller 2>"$work/perms.log" \
+  && ok "templates: pr-review.yml grants the review its CI reads" || bad "templates: pr-review.yml grants the review its CI reads" "$(tail -1 "$work/perms.log")"
 vw="$root/.github/workflows/verify.yml"
 grep -q 'runs-on: ${{ fromJSON(inputs.runs-on) }}' "$vw" && grep -q "default: '\"ubuntu-latest\"'" "$vw" \
   && ok "verify: runs-on input defaults to ubuntu-latest via fromJSON" || bad "verify: runs-on input defaults to ubuntu-latest via fromJSON"
