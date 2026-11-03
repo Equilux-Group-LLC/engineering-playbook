@@ -2,6 +2,8 @@ name: PR Checks
 
 # Testing harness playbook, Gate 3. Calls the shared Equilux workflows; keep the @ref and toolkit-ref equal.
 # Runs only when the code changes; the AI review is in PR Review so marking a draft ready re-runs only that.
+# Docs-only PRs (docs/, *.md) pass verify in seconds without building. Never add paths/paths-ignore here: a
+# required check whose workflow never starts blocks the merge.
 # Make these checks required with a branch ruleset where your plan allows (playbook Part 6).
 
 on:
@@ -26,3 +28,7 @@ jobs:
       # Path your `verify` command writes coverage to (LCOV or Cobertura). Delete the line to skip coverage gates.
       coverage-report: coverage/lcov.info
       changed-line-coverage: 80
+      # Docs paths your verify reads still run it in full, for example:
+      # docs-exclude-pattern: '^docs/recipes/'
+      # Skip drafts until marked ready; then also add the "ready for review" event type above (playbook Part 11):
+      # skip-drafts: true

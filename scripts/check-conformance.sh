@@ -7,6 +7,7 @@
 #   3. AGENTS.md (or CLAUDE.md) has the equilux-testing-harness block
 #   4. a workflow calls ai-review.yml@v1, and none calls it at another ref
 #   5. .equilux.yml names the playbook version and profile (and template_ref when it names a template)
+#   6. a workflow that passes verify.yml `skip-drafts: true` also triggers on ready_for_review
 set -uo pipefail
 
 toolkit="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -86,5 +87,15 @@ else
       || bad ".equilux.yml: template_ref pins the template to a commit" "got '$(equilux template_ref)'"
   fi
 fi
+
+# 6. Draft skipping: without ready_for_review, the draft's green "skipped" verify stays once the PR is marked ready.
+for wf in "$repo"/.github/workflows/*.y*ml; do
+  [[ -f "$wf" ]] && grep -qE '^[[:space:]]*skip-drafts:[[:space:]]*true' "$wf" || continue
+  if grep -qE '^[^#]*ready_for_review' "$wf"; then
+    ok "drafts: $(basename "$wf") skips drafts and runs on ready_for_review"
+  else
+    bad "drafts: $(basename "$wf") skips drafts and runs on ready_for_review" "add ready_for_review to its pull_request.types"
+  fi
+done
 
 exit "$failed"

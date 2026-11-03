@@ -551,13 +551,23 @@ template from `template_ref` to its latest release and apply that diff by pull r
 | Workflow | Gate 3 check | Key inputs |
 | --- | --- | --- |
 | `secret-scan.yml` | `secrets` | `gitleaks-version` |
-| `verify.yml` | `verify`, `coverage` | `verify-command` (default `verify`), `setup-command`, `coverage-report`, `changed-line-coverage` (default 80), `toolkit-ref`, `runs-on` (JSON, default `'"ubuntu-latest"'`; for example `'["self-hosted","macOS","ARM64","ios"]'`) |
+| `verify.yml` | `verify`, `coverage` | `verify-command` (default `verify`), `setup-command`, `coverage-report`, `changed-line-coverage` (default 80), `toolkit-ref`, `runs-on` (JSON, default `'"ubuntu-latest"'`; for example `'["self-hosted","macOS","ARM64","ios"]'`), `docs-pattern` (default `^(docs/|.*\.md$)`), `docs-exclude-pattern`, `skip-drafts` (default `false`) |
 | `tests-changed.yml` | `tests-changed` | `source-pattern`, `test-pattern`, `opt-out-label` (default `no-test-needed`) |
 | `ai-review.yml` | `review` | `rules-file` (default `AGENTS.md`), `profile` (`base`, `web` or `ios`; default `base`) appends `profiles/<profile>/review-rubric.md`, `toolkit-ref`; secret `CLAUDE_CODE_OAUTH_TOKEN` |
 
 `verify.yml` installs the toolchain from `mise.toml` / `.tool-versions` when present (any language), and
 otherwise detects Node, Python and Go. Coverage gates read LCOV or Cobertura reports. The total-coverage
 ratchet compares against a committed `.coverage-baseline` file (raise it when coverage rises; never lower it).
+
+A pull request whose changed paths all match `docs-pattern`, and none `docs-exclude-pattern`, skips the build,
+tests and coverage: its `verify` check still runs, on `ubuntu-latest`, and reports success in seconds. Set
+`docs-exclude-pattern` to any docs path your `verify` reads (for example `^docs/recipes/`). With
+`skip-drafts: true` a draft is skipped the same way; add `ready_for_review` to the caller's
+`pull_request.types` so marking it ready runs the full verify (Gate 2, pre-push, still runs locally). `check-conformance.sh` fails
+a workflow that sets `skip-drafts: true` without `ready_for_review`. Pushes and
+manual runs never skip, and an error while deciding runs the full verify. Never put `paths` or `paths-ignore`
+on the trigger of a required check: a workflow that never starts leaves the check "Expected" and blocks the
+merge.
 
 ### Adopting in a repository
 
