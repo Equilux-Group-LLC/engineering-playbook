@@ -121,6 +121,16 @@ cp "$root/templates/AGENTS.testing.md" "$good/AGENTS.md"
 cp "$root/templates/workflows/pr-review.yml" "$good/.github/workflows/pr-review.yml"
 printf 'playbook: v1.1.0   # release\nprofile: web\ntemplate: Example-Org/web-template\ntemplate_ref: 0123456789abcdef0123456789abcdef01234567\n' > "$good/.equilux.yml"
 expect_status "conformance: conforming repo passes" 0 cg "$good"
+# skip-drafts without ready_for_review leaves the draft's green "skipped" check standing once the PR is marked ready.
+cp "$root/templates/workflows/pr-checks.yml" "$good/.github/workflows/pr-checks.yml"
+expect_status "conformance: template's commented-out skip-drafts passes" 0 cg "$good"
+sed -i.bak 's/^      # skip-drafts: true/      skip-drafts: true/' "$good/.github/workflows/pr-checks.yml"
+out="$(cg "$good" 2>&1)"
+[[ "$out" == *"FAIL drafts: pr-checks.yml skips drafts and runs on ready_for_review"* ]] \
+  && ok "conformance: skip-drafts without ready_for_review fails" || bad "conformance: skip-drafts without ready_for_review fails" "$out"
+sed -i.bak 's/types: \[opened, synchronize, reopened\]/types: [opened, synchronize, reopened, ready_for_review]/' "$good/.github/workflows/pr-checks.yml"
+expect_status "conformance: skip-drafts with ready_for_review passes" 0 cg "$good"
+rm "$good/.github/workflows/pr-checks.yml" "$good/.github/workflows/pr-checks.yml.bak"
 nc="$work/conf-bad"; new_repo "$nc"; mkdir -p "$nc/.github/workflows" "$nc/test/invariants"
 printf '%s\n' '{"scripts":{"verify":"true"}}' > "$nc/package.json"
 printf -- '- id: A\n  rule: [unclosed\n' > "$nc/test/invariants/CATALOG.yaml"
@@ -340,6 +350,38 @@ done
 ftk2="$work/rubric-toolkit"; mkdir -p "$ftk2/profiles" "$ftk2/outside"; echo leaked > "$ftk2/outside/review-rubric.md"
 expect_status "review-rubric: refuses an existing file outside profiles/" 1 bash "$root/scripts/review-rubric.sh" "$ftk2" ../outside
 
+# ---- verify-skip.sh ----
+# vs <files> [VAR=value...]: prints the decision for a newline-separated list of changed files.
+docs_default='^(docs/|.*\.md$)'
+vs() { local files="$1"; shift
+  printf '%s' "$files" | env EVENT_NAME=pull_request IS_DRAFT=false SKIP_DRAFTS=false DOCS_PATTERN="$docs_default" \
+    DOCS_EXCLUDE_PATTERN= "$@" bash "$root/scripts/verify-skip.sh" 2>&1; }
+decides() { # decides <name> <want skip=...> <files> [VAR=value...]
+  local name="$1" want="$2" files="$3"; shift 3
+  local out; out="$(vs "$files" "$@")"
+  if [[ "$(head -1 <<<"$out")" == "$want" && "$(sed -n 2p <<<"$out")" == reason=?* ]]; then ok "verify-skip: $name"
+  else bad "verify-skip: $name" "$out"; fi; }
+decides "docs-only PR skips" skip=true $'docs/decisions/0027.md\nREADME.md\ndocs/images/a.png'
+decides "nested markdown counts as docs" skip=true 'Packages/Identity/README.md'
+decides "one source file runs verify" skip=false $'docs/a.md\nApp/Sources/App.swift'
+decides "a workflow change runs verify" skip=false '.github/workflows/pr-checks.yml'
+decides "excluded docs path runs verify" skip=false $'docs/a.md\ndocs/recipes/replace-the-sample-feature.md' DOCS_EXCLUDE_PATTERN='^docs/recipes/'
+decides "exclude that matches nothing still skips" skip=true 'docs/a.md' DOCS_EXCLUDE_PATTERN='^docs/recipes/'
+decides "empty docs-pattern never skips" skip=false 'docs/a.md' DOCS_PATTERN=
+decides "empty file list runs verify" skip=false ''
+decides "push to main runs verify" skip=false 'docs/a.md' EVENT_NAME=push
+decides "workflow_dispatch runs verify" skip=false 'docs/a.md' EVENT_NAME=workflow_dispatch
+decides "draft skips with skip-drafts" skip=true 'App/Sources/App.swift' IS_DRAFT=true SKIP_DRAFTS=true
+decides "draft runs verify without skip-drafts" skip=false 'App/Sources/App.swift' IS_DRAFT=true
+decides "ready PR runs verify with skip-drafts" skip=false 'App/Sources/App.swift' SKIP_DRAFTS=true
+out="$(vs 'docs/a.md' IS_DRAFT=true SKIP_DRAFTS=true)"
+[[ "$out" == *"reason=draft"* ]] && ok "verify-skip: draft reason says draft" || bad "verify-skip: draft reason says draft" "$out"
+out="$(vs $'docs/a.md\nApp/Sources/App.swift')"
+[[ "$out" == *"App/Sources/App.swift"* ]] && ok "verify-skip: reason names the first non-docs path" || bad "verify-skip: reason names the first non-docs path" "$out"
+# A bad regex must fail loudly, never read as "nothing matched" and skip.
+expect_status "verify-skip: invalid docs-pattern fails" 2 vs 'docs/a.md' DOCS_PATTERN='(docs'
+expect_status "verify-skip: invalid exclude pattern fails" 2 vs 'docs/a.md' DOCS_EXCLUDE_PATTERN='[x'
+
 # ---- review and verify workflows ----
 air="$root/.github/workflows/ai-review.yml"
 grep -q 'Bash(gh pr checks:\*)' "$air" && grep -q 'do not run tests, builds or linters yourself' "$air" \
@@ -362,8 +404,31 @@ python3 -c "$review_perms" "$air" callee 2>"$work/perms.log" \
 python3 -c "$review_perms" "$root/templates/workflows/pr-review.yml" caller 2>"$work/perms.log" \
   && ok "templates: pr-review.yml grants the review its CI reads" || bad "templates: pr-review.yml grants the review its CI reads" "$(tail -1 "$work/perms.log")"
 vw="$root/.github/workflows/verify.yml"
-grep -q 'runs-on: ${{ fromJSON(inputs.runs-on) }}' "$vw" && grep -q "default: '\"ubuntu-latest\"'" "$vw" \
+grep -q "inputs.runs-on) }}" "$vw" && grep -q "default: '\"ubuntu-latest\"'" "$vw" \
   && ok "verify: runs-on input defaults to ubuntu-latest via fromJSON" || bad "verify: runs-on input defaults to ubuntu-latest via fromJSON"
+# Issue #18: skipping must keep the required check reporting, never skip on an error, and gate every expensive step.
+verify_skip='import sys, yaml
+wf = yaml.safe_load(open(sys.argv[1]))
+on = wf[True]["workflow_call"]["inputs"]
+assert on["docs-pattern"]["default"] == r"^(docs/|.*\.md$)", on["docs-pattern"]
+assert on["docs-exclude-pattern"]["default"] == "", on["docs-exclude-pattern"]
+assert on["skip-drafts"] == {**on["skip-drafts"], "type": "boolean", "default": False}, on["skip-drafts"]
+ch, v = wf["jobs"]["changes"], wf["jobs"]["verify"]
+assert ch["runs-on"] == "ubuntu-latest" and set(ch["outputs"]) == {"skip", "reason"}, ch
+assert any("verify-skip.sh" in s.get("run", "") for s in ch["steps"]), "changes job must call verify-skip.sh"
+assert v["needs"] == "changes" and v["if"] == "${{ !cancelled() }}", (v["needs"], v["if"])
+assert v["env"]["SKIP"] == "${{ needs.changes.outputs.skip }}", v["env"]
+assert "\"ubuntu-latest\"" in v["runs-on"] and "inputs.runs-on" in v["runs-on"], v["runs-on"]
+first, rest = v["steps"][0], v["steps"][1:]
+assert first["if"] == "env.SKIP == \x27true\x27", first
+ungated = [s.get("name", s.get("uses")) for s in rest if not s.get("if", "").startswith("env.SKIP != \x27true\x27")]
+assert not ungated, "steps that ignore SKIP: %s" % ungated'
+python3 -c "$verify_skip" "$vw" 2>"$work/vskip.log" \
+  && ok "verify: skip path reports success, fails safe and gates every step" || bad "verify: skip path reports success, fails safe and gates every step" "$(tail -1 "$work/vskip.log")"
+for wf in "$root"/templates/workflows/*.yml "$root"/dotgithub/org/workflow-templates/*.yml; do
+  ! grep -qE '^[[:space:]]*paths(-ignore)?:' "$wf" && ok "templates: $(basename "$wf") has no path filter on its trigger" \
+    || bad "templates: $(basename "$wf") has no path filter on its trigger" "a filtered required check never reports"
+done
 grep -qE '^    #   profile: ' "$root/templates/workflows/pr-review.yml" \
   && ok "templates: pr-review.yml shows the profile input" || bad "templates: pr-review.yml shows the profile input"
 vs="$root/templates/claude/skills/verify/SKILL.md"
