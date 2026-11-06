@@ -309,7 +309,8 @@ Formatter (auto-fix staged files), linter on staged files, secret scan on staged
 
 ### Gate 2: Pre-push (laptop, within `verify`'s budget)
 
-`verify` (all of L0 to L4, plus L5 if it's fast enough; otherwise L5 runs in CI only).
+`verify` (all of L0 to L4, plus L5 if it's fast enough; otherwise L5 runs in CI only, or at the release gate
+when the profile sets one up; see below).
 
 ### Gate 3: Pull request (GitHub Actions)
 
@@ -332,6 +333,20 @@ repository has passed it, its review layer is not in place. Re-run it when the r
 rubric, the rules file or the review model changes, and record each result in the profile's `results/`. The
 reviewer reads CI results (`gh pr checks`) rather than running tests itself, and names specifically what it
 could not verify.
+
+### Release gate (optional; a profile opts in)
+
+A profile MAY define `verify:release` (Part 7): `verify` plus the L5 suite, run once before a build goes to
+anyone but its developers (an app store beta, a staging hand-off). When it does, `verify` (Gates 2 and 3, and
+the run on the default branch) MAY leave L5 out, and the `e2e` check above becomes the release gate's job.
+The trade is speed now for a later catch: a broken journey shows up at release, not at the pull request, so a
+profile adopts it only for apps with no users outside the team yet, and says when to move L5 back.
+
+- `verify:release` MUST run everything `verify` runs, plus L5. Green `verify:release` implies green `verify`.
+- The release MUST be impossible without a green `verify:release`. Make it structural, not a checklist item:
+  the workflow that runs `verify:release` is the only thing that creates the release tag or starts the upload.
+- Coverage floors still apply to `verify` without L5. If L5 is what keeps a target above its floor, the gate
+  cannot move until unit or integration tests cover that code.
 
 ### Coverage thresholds
 
@@ -380,6 +395,7 @@ it. The platform profile maps each command to its tools and sets the budgets mar
 | `verify:fast` | Gate 0 subset: `format:check` → `lint` → `typecheck` → `test:unit` (fail-fast). The profile lists the exact stages; anything that cannot fit in the budget (app builds, simulators, containers) stays out | < 60 s |
 | `verify` | `format:check` → `lint` → `typecheck` → `build` → `coverage` (fail-fast) | < 5 min, or the profile's budget |
 | `smoke:<env>` | L6 against `<env>` | < 2 min |
+| `verify:release` | Optional: only when the profile defines a release gate (Part 6). `verify` + L5 | The profile's budget |
 
 `verify:fast` MUST be a strict subset of `verify`: green `verify` implies green `verify:fast`. A profile MAY
 set `verify`'s budget above 5 minutes when the platform needs it (an iOS build and simulator run); it MUST

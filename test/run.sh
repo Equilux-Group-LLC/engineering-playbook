@@ -157,6 +157,16 @@ out="$(bash "$ftk/scripts/check-conformance.sh" "$good" 2>&1)"
   || bad "conformance: uses the profile's catalog path, not its templates/ mention" "$out"
 mkdir -p "$good/app/invariants"; cp "$root/templates/invariants/CATALOG.yaml" "$good/app/invariants/"
 expect_status "conformance: passes with the catalog at the profile's path" 0 bash "$ftk/scripts/check-conformance.sh" "$good"
+# A profile with a release gate (it names `verify:release`) requires the command; one without does not (Part 6).
+out="$(bash "$ftk/scripts/check-conformance.sh" "$good" 2>&1)"
+[[ "$out" != *"verify:release"* ]] && ok "conformance: no release-gate check when the profile has none" \
+  || bad "conformance: no release-gate check when the profile has none" "$out"
+printf '| `verify:release` | `verify` plus L5 | < 15 min |\n' >> "$ftk/profiles/fake.md"
+out="$(bash "$ftk/scripts/check-conformance.sh" "$good" 2>&1)"; got=$?
+[[ "$got" == 1 && "$out" == *"FAIL contract: verify:release resolves"* ]] && ok "conformance: release-gate profile without verify:release fails" \
+  || bad "conformance: release-gate profile without verify:release fails" "exit $got: $out"
+printf '%s\n' '{"scripts":{"verify":"true","verify:fast":"true","verify:release":"true"}}' > "$good/package.json"
+expect_status "conformance: release-gate profile with verify:release passes" 0 bash "$ftk/scripts/check-conformance.sh" "$good"
 
 # ---- managed-block.sh ----
 # shellcheck source=../scripts/lib/managed-block.sh
