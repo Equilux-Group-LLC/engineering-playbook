@@ -39,10 +39,13 @@ place where it still runs, and a guarantee that a release cannot skip it.
    `verify:release` = `verify` + L5 (Part 7). A profile that opts in may leave L5 out of `verify`. The release
    must be structurally impossible without a green `verify:release`: the workflow that runs it is the only
    thing that creates the release.
-2. **The iOS profile opts in.**
-   - `verify` runs the `Verify` test plan without `AppUITests`, with coverage on and its floors unchanged.
-     Without the journeys, caregiverApp's App target is at 67.1% against the 60% floor.
-   - `verify:release` (`scripts/verify --release`) runs the whole plan.
+2. **The iOS profile adopts the release gate, with a per-app opt-in for L5.**
+   - `verify:release` (`scripts/verify --release`) runs the whole plan in every iOS app.
+   - `verify` keeps the journeys by default. An app moves them to the release gate with
+     `ui_journeys: release` in `.equilux.yml`, and only when its App target meets the coverage floor without
+     them. Measured 2026-11-06: caregiverApp is at 67.1% without them, against the 60% floor, and opts in.
+     ios-app-template is at 81.3% with them and 44.8% without, so it keeps them (Part 6: L5 cannot move while
+     it is what holds a target above its floor).
    - A manual `release.yml` runs `verify:release` on the self-hosted runner and pushes the `release/<version>`
      tag that starts Xcode Cloud, only on green.
 3. **The iOS build cache moves outside the checkout on CI**, so `git clean` keeps it. Gate 2 stays `verify`, now
@@ -63,7 +66,8 @@ place where it still runs, and a guarantee that a release cannot skip it.
 
 ## Consequences
 
-- Easier: each push costs about 2 to 3 minutes of Mac time with a warm cache, instead of 8 to 10.
+- Easier: in an app that opts in, each push costs about 2 to 3 minutes of Mac time with a warm cache, instead
+  of 8 to 10. Every iOS app gets the warm cache and the structural release gate.
 - Harder: a journey broken by a merged pull request is found at release time, not at the pull request.
   Mitigations:
   - The models and views the journeys drive have unit and snapshot tests.

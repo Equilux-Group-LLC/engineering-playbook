@@ -33,7 +33,7 @@ profile assumes:
 | Strings and identifiers | One string catalog, checked after the build; every interactive control has an identifier | 0015 |
 | Integration tests | Swift `.integration` suites against a test-only local Worker entry; a skipped test fails `verify` | 0016 |
 | Verify and gates | `scripts/verify` is the single command; every gate has tests that fail on purpose | 0017 |
-| UI journeys | Three journeys with Apple's accessibility audit; one documented exemption for system bars. They run at the release gate (`verify:release`), not in `verify` (playbook ADR-0002) | 0019 |
+| UI journeys | Three journeys with Apple's accessibility audit; one documented exemption for system bars. They always run at the release gate (`verify:release`); an app may leave them out of `verify` with `ui_journeys: release` in `.equilux.yml` (playbook ADR-0002) | 0019 |
 | Harness | Adopts this profile: mise command contract, shared workflows, `.equilux.yml`, `scripts/sync-template` | 0020 |
 
 ## 2. Layer map
@@ -46,7 +46,7 @@ profile assumes:
 | L2 Integration | Worker: Vitest with Cloudflare's Workers test pool (`@cloudflare/vitest-plugin`) against local D1 with every Drizzle migration applied. App: Swift Testing suites tagged `.integration` running the Live services against `wrangler dev` with a throwaway local D1. Better Auth contract tests (`Edge/test/contract`, `Edge/contract/ios-client-contract.json`) | `Edge/test/**`, `Tests/**` (`.integration`) | A skipped test fails `verify`, so a suite that turns itself off cannot pass. Fake only third parties (APNs, Apple's token revoke endpoint). Seed users are obviously fake (`test-user-a@example.invalid`). Contract tests run on every Better Auth upgrade |
 | L3 Invariants | Same tools as L1/L2, catalogued in `test/invariants/CATALOG.yaml` | Tests named by each entry's `enforced_by` | See section 6. Every Worker route is on the `api` router behind `requireSession` and scopes every query to `c.var.userId`; every table with a `user_id` column is in `userOwnedTables` |
 | L4 Deployment | Bash tests for `scripts/bootstrap`, `scripts/generate`, `check-layering`, lint rules, `ci_scripts/ci_post_clone.sh` | `scripts/tests/**` | Run against a temp copy of the repo; no Apple or Cloudflare credentials |
-| L5 E2E | XCUITest, app launched with `-uitest` wiring every fake. Three journeys: sign-in stub, create item, delete account | `Tests/AppUITests/**` | Run by `verify:release`, not `verify` (section 4, Release); query by `accessibilityIdentifier` only; five journeys at most; each calls `try app.performAccessibilityAudit()` and suppresses a false positive only in the issue handler, with a reason |
+| L5 E2E | XCUITest, app launched with `-uitest` wiring every fake. Three journeys: sign-in stub, create item, delete account | `Tests/AppUITests/**` | Always run by `verify:release` (section 4, Release), and by `verify` unless the app sets `ui_journeys: release` in `.equilux.yml`, which it may do only when the App target meets its coverage floor without them; query by `accessibilityIdentifier` only; five journeys at most; each calls `try app.performAccessibilityAudit()` and suppresses a false positive only in the issue handler, with a reason |
 | L6 Smoke | Worker: read-only `curl` script per Wrangler environment (health, version = deployed commit, D1 migration count, anonymous request to an `api` route returns 401). App: manual device pass before each TestFlight build (camera, BLE and other device frameworks have no simulator) | `scripts/smoke-<env>.sh` | Never sign a real account in for smoke |
 | L7 Release | Worker: manual production workflow, D1 Time Travel bookmark recorded before `wrangler d1 migrations apply`, then deploy, smoke and a deployment record. App: Xcode Cloud archives, signs and uploads to TestFlight on `release/*` tags | `.github/workflows/`, Xcode Cloud workflow docs | Secrets via `wrangler secret` only, never `wrangler.toml`, `.dev.vars` or the repo |
 
@@ -67,19 +67,19 @@ Commands are mise tasks in `.mise.toml` wrapping `scripts/*`, found by `.harness
 | `test:unit` | Swift Testing unit suites + `pnpm --dir Edge test` | |
 | `test:integration` | `.integration` suites against `wrangler dev` + Worker contract tests | |
 | `test:deployment` | `scripts/tests/*.sh` | < 1 min |
-| `test:e2e` | XCUITest journeys (`AppUITests` in the `Verify` test plan; run by `verify:release`) | |
+| `test:e2e` | XCUITest journeys (`AppUITests` in the `Verify` test plan) | |
 | `test` | `test:unit`, `test:integration` and `test:deployment` | |
 | `coverage` | `xcodebuild test -testPlan Verify -enableCodeCoverage YES`, then `xcrun xccov` → `build/coverage.json`, converted to Cobertura for the shared gate | |
 | `verify:fast` | Toolchain check → `format:check` → `swiftlint` → `check-layering` → token drift → `typecheck` → `pnpm --dir Edge test`. No `xcodebuild` | **< 60 s** |
-| `verify` | `scripts/verify`: toolchain → generate → token drift → format → lint → Edge typecheck + Vitest → layering → `check-a11y-ids` → `check-strings --source` → `check-privacy` → `check-catalog` → script and lint-rule tests → plist lint → local Worker (`scripts/edge-dev`) → `xcodebuild test` (`Verify` test plan without `AppUITests`, iPhone 17 Pro, coverage on; any skipped test fails) → `check-strings --catalog` → `Package.resolved` sync → coverage gate → `check-bundle-secrets` → stop the Worker | **< 5 min** with a warm build cache |
-| `verify:release` | `scripts/verify --release`: the same stages, with the whole `Verify` test plan (the UI journeys included) | **< 15 min** |
+| `verify` | `scripts/verify`: toolchain → generate → token drift → format → lint → Edge typecheck + Vitest → layering → `check-a11y-ids` → `check-strings --source` → `check-privacy` → `check-catalog` → script and lint-rule tests → plist lint → local Worker (`scripts/edge-dev`) → `xcodebuild test` (`Verify` test plan, without `AppUITests` when the app sets `ui_journeys: release` in `.equilux.yml`; iPhone 17 Pro, coverage on; any skipped test fails) → `check-strings --catalog` → `Package.resolved` sync → coverage gate → `check-bundle-secrets` → stop the Worker | **< 15 min**; < 5 min with a warm build cache and the journeys at the release gate |
+| `verify:release` | `scripts/verify --release`: the same stages, with the whole `Verify` test plan (the UI journeys always included) | **< 15 min** |
 | `smoke:<env>` | `scripts/smoke-<env>.sh` | < 2 min |
 
 `verify` builds the app and boots a simulator, so its budget assumes the build cache survives between runs:
 on CI, `scripts/lib.sh` keeps DerivedData and the package checkouts outside the checkout, where
 `actions/checkout`'s `git clean -ffdx` cannot delete them. `verify:fast` is the loop the agent runs before every
-commit. Test plans: `Verify.xctestplan` (`ScreenshotTests` skipped; `verify` also skips `AppUITests`, and
-`verify:release` runs it); `Screenshots.xctestplan` for `scripts/screenshot.sh`.
+commit. Test plans: `Verify.xctestplan` (`ScreenshotTests` skipped; `verify` also skips `AppUITests` in an app
+that opts in, and `verify:release` always runs it); `Screenshots.xctestplan` for `scripts/screenshot.sh`.
 
 ## 4. Gates
 
@@ -87,7 +87,7 @@ commit. Test plans: `Verify.xctestplan` (`ScreenshotTests` skipped; `verify` als
 | --- | --- |
 | 0 Agent self-check | `.claude/skills/verify/SKILL.md` (copied from `templates/claude/skills/verify/`); step 2 uses XcodeBuildMCP |
 | 1 Pre-commit | lefthook: `gitleaks git --staged`, `format:check` and `lint` through `.harness/run-contract.sh` |
-| 2 Pre-push | `verify` (no UI journeys) |
+| 2 Pre-push | `verify` |
 | 3 Pull request | `pr-checks.yml` calls the shared `verify.yml` on the **self-hosted Mac mini runner** (`runs-on: [self-hosted, macOS, ARM64, ios]`, same-repository PRs only), which runs `scripts/verify`, and the shared `secret-scan.yml`. `verify.yml` is called with `skip-drafts: true` (and `ready_for_review` in the types) and a `docs-exclude-pattern` for the docs `scripts/verify` reads; docs-only and draft PRs then pass `verify` on `ubuntu-latest` without using the Mac. GitHub-hosted runners run `pr-tests-changed.yml`, `pr-review.yml` (`profile: ios`), `pr-issue-link.yml` and `pr-conformance.yml`. Dependabot covers swift, npm and github-actions |
 | 4 Deploy | Worker: Wrangler from GitHub Actions (development on merge; production manual). App: Xcode Cloud to TestFlight on `release/*` tags, with `ci_scripts/ci_post_clone.sh` installing mise tools and running `scripts/generate` |
 | Release | `release.yml` (manual, `main` only) runs `verify:release` on the self-hosted runner and, only when it is green, pushes the `release/<version>` tag that starts Xcode Cloud. Nobody pushes `release/*` tags by hand. This is the playbook's release gate (Part 6, [ADR-0002](../docs/decisions/0002-l5-at-the-release-gate.md)); ADR-0002 says when to revisit it |
