@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Check that a repository follows the harness's structural rules (playbook Parts 5, 7, 8 and 11).
 # Usage: check-conformance.sh [repo-dir]      exit 0 = conforms, 1 = at least one check failed
-#   1. `verify` and `verify:fast` resolve through run-contract.sh (nothing is run)
+#   1. `verify` and `verify:fast` resolve through run-contract.sh (nothing is run), and `verify:release` when the
+#      profile has a release gate (it names `verify:release`)
 #   2. the invariant catalog parses as a YAML list: test/invariants/CATALOG.yaml, or the first */CATALOG.yaml path
 #      outside templates/ named in profiles/<profile>.md when .equilux.yml names a profile this toolkit has
 #   3. AGENTS.md (or CLAUDE.md) has the equilux-testing-harness block
@@ -31,8 +32,17 @@ for cmd in verify verify:fast; do
   fi
 done
 
-# 2. Invariant catalog
 profile="$(equilux profile)"
+# A profile that defines a release gate (Part 6) names `verify:release`; its repositories must define it.
+if [[ -n "$profile" && -f "$toolkit/profiles/$profile.md" ]] && grep -q '`verify:release`' "$toolkit/profiles/$profile.md"; then
+  if runner="$(bash "$toolkit/scripts/run-contract.sh" --resolve verify:release "$repo" 2>&1)"; then
+    ok "contract: verify:release resolves ($runner)"
+  else
+    bad "contract: verify:release resolves" "profile $profile has a release gate: add 'verify:release' (playbook Parts 6 and 7)"
+  fi
+fi
+
+# 2. Invariant catalog
 catalog="test/invariants/CATALOG.yaml"
 if [[ -n "$profile" && -f "$toolkit/profiles/$profile.md" ]]; then
   # Profiles also cite the toolkit's own templates/ copy, which is not a path in the app repository.

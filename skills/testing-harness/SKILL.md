@@ -24,6 +24,8 @@ Read `.equilux.yml` at the repository root if it exists. Its `profile` names the
 or <https://github.com/Equilux-Group-LLC/engineering-playbook/tree/main/profiles>). The profile gives the tools
 for each layer and command, the `verify` time budget, the `verify:fast` stages, coverage floors and the
 reviewer's rubric additions. Without `.equilux.yml`, use the playbook's defaults (Parts 4, 6 and 7).
+If the profile defines a release gate (it names `verify:release`), `verify` may leave out L5. Run
+`verify:release` before anything that ships a build beyond the team, and never create a release by hand (Part 6).
 
 Before every commit that changes code, run the repository's `verify` skill (`.claude/skills/verify/SKILL.md`,
 Gate 0): `verify:fast`, a `/simplify` pass on changed source only, `verify:fast` again. If the repository has
